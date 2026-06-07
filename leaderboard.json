@@ -1,1 +1,19 @@
-{ "users": {} }
+{
+  "users": {
+    "odemar": {
+      "reviews": [
+        {
+          "srNumber": "700123456",
+          "ts": 1733600000000,
+          "health": 88,
+          "grade": "A"
+        }
+      ],
+      "achievements": {
+        "first": 1733600000000
+      },
+      "allClearCount": 1,
+      "updatedAt": "2026-06-07T15:03:53.621Z"
+    }
+  }
+}
