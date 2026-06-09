@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cisco Case Review Assistant — Loader
 // @namespace    http://tampermonkey.net/
-// @version      0.27.1
+// @version      0.27.3
 // @description  Loads the Case Review Assistant script.
 // @author       Oday (odemar@cisco.com)
 // @match        https://scripts.cisco.com/app/quicker_csone/case/*
