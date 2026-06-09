@@ -6,117 +6,157 @@
 <title>Cisco Case Review Assistant — v0.27.0</title>
 <style>
   :root{
-    --bg:#070a12; --panel:rgba(18,24,42,.72);
-    --accent:#00e5ff; --accent2:#7c4dff; --accent3:#ff3df0;
-    --text:#e8f0ff; --muted:#8aa0c4; --line:rgba(0,229,255,.18);
-    --cr-bg:#0f1729; --cr-head-a:#1e293b; --cr-head-b:#172033; --cr-text:#e2e8f0;
+    --bg:#070a16;
+    --accent:#4f8cff;     /* midnight blue */
+    --accent2:#c4a4ff;    /* royal violet */
+    --accent3:#ff7eb6;    /* sakura pink */
+    --accent4:#5ef2c9;    /* aurora teal */
+    --gold:#ffd24a;
+    --text:#e8f0ff; --muted:#9fb2e0; --line:rgba(124,160,255,.18);
+    --panel:rgba(18,24,46,.66);
+    /* mock panel tokens (live-swapped by JS) */
+    --m-bg:#0a1326; --m-text:#e6edff; --m-dim:#9fb2e0; --m-mut:#5e6f9e;
+    --m-acc:#4f8cff; --m-acc2:#6aa6ff; --m-surf:rgba(120,160,255,.08);
+    --m-surf2:rgba(120,160,255,.16); --m-border:rgba(120,160,255,.16);
+    --m-field:rgba(6,12,28,.7); --m-on:#04102b; --m-hA:#1b2a4d; --m-hB:#10182f;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6;}
 
-  /* animated backdrop */
-  .bg-fx{position:fixed;inset:0;z-index:-2;
+  /* animated backdrop — aurora + drifting starfield */
+  .bg-fx{position:fixed;inset:0;z-index:-3;
     background:
-      radial-gradient(60vw 60vw at 15% 10%,rgba(124,77,255,.18),transparent 60%),
-      radial-gradient(50vw 50vw at 85% 30%,rgba(0,229,255,.16),transparent 60%),
-      radial-gradient(40vw 40vw at 50% 100%,rgba(255,61,240,.12),transparent 60%),
+      radial-gradient(60vw 60vw at 15% 8%,rgba(79,140,255,.20),transparent 60%),
+      radial-gradient(50vw 50vw at 85% 25%,rgba(196,164,255,.18),transparent 60%),
+      radial-gradient(46vw 46vw at 50% 100%,rgba(94,242,201,.14),transparent 60%),
+      radial-gradient(40vw 40vw at 70% 70%,rgba(255,126,182,.12),transparent 60%),
       var(--bg);
-    animation:hue 18s linear infinite;}
-  @keyframes hue{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}
-  .grid-fx{position:fixed;inset:0;z-index:-1;opacity:.22;
+    animation:hue 26s ease-in-out infinite alternate;}
+  @keyframes hue{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(40deg)}}
+  #stars{position:fixed;inset:0;z-index:-2;}
+  .grid-fx{position:fixed;inset:0;z-index:-1;opacity:.16;
     background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
-    background-size:48px 48px;mask-image:radial-gradient(circle at 50% 30%,#000 30%,transparent 80%);
-    animation:drift 40s linear infinite;}
-  @keyframes drift{from{background-position:0 0}to{background-position:48px 48px}}
+    background-size:52px 52px;mask-image:radial-gradient(circle at 50% 25%,#000 25%,transparent 80%);
+    animation:drift 50s linear infinite;}
+  @keyframes drift{from{background-position:0 0}to{background-position:52px 52px}}
 
   nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
-    padding:16px 6vw;backdrop-filter:blur(14px);background:rgba(7,10,18,.55);border-bottom:1px solid var(--line);}
+    padding:16px 6vw;backdrop-filter:blur(14px);background:rgba(7,10,22,.55);border-bottom:1px solid var(--line);}
   .brand{display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.5px;font-size:1.05rem;}
-  /* logo = your launcher artwork; colors cycle through the theme, shapes fixed */
-  .logo{width:40px;height:40px;filter:drop-shadow(0 0 8px rgba(0,229,255,.55));}
-  .logo .ring{fill:#E2231A;animation:logoRing 9s linear infinite;}
-  .logo .arrow{fill:#fff;animation:logoArrow 9s linear infinite;}
-  @keyframes logoRing{0%{fill:#E2231A}25%{fill:#7c4dff}50%{fill:#00e5ff}75%{fill:#ff3df0}100%{fill:#E2231A}}
-  @keyframes logoArrow{0%,100%{fill:#fff}50%{fill:#eafcff}}
-  .brand span{background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .logo{width:40px;height:40px;filter:drop-shadow(0 0 10px rgba(79,140,255,.6));}
+  .logo .ring{fill:#E2231A;animation:logoRing 10s linear infinite;}
+  .logo .arrow{fill:#fff;}
+  @keyframes logoRing{0%{fill:#4f8cff}25%{fill:#c4a4ff}50%{fill:#ff7eb6}75%{fill:#5ef2c9}100%{fill:#4f8cff}}
+  .brand span{background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3),var(--accent4));-webkit-background-clip:text;background-clip:text;color:transparent;}
   .nav-links a{color:var(--muted);text-decoration:none;margin-left:22px;font-size:.9rem;transition:.25s;}
-  .nav-links a:hover{color:var(--accent);text-shadow:0 0 12px rgba(0,229,255,.55);}
+  .nav-links a:hover{color:var(--accent);text-shadow:0 0 12px rgba(79,140,255,.55);}
 
-  header{text-align:center;padding:13vh 6vw 9vh;}
-  .pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:6px 16px;font-size:.78rem;color:var(--accent);margin-bottom:26px;background:rgba(0,229,255,.06);animation:pulse 3s ease-in-out infinite;}
-  @keyframes pulse{50%{box-shadow:0 0 24px rgba(0,229,255,.35)}}
-  h1{font-size:clamp(2.4rem,6vw,4.6rem);line-height:1.05;font-weight:800;letter-spacing:-1px;}
-  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2) 50%,var(--accent3));background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 5s linear infinite;}
-  @keyframes shine{to{background-position:200% center}}
-  .sub{max-width:640px;margin:24px auto 38px;color:var(--muted);font-size:1.1rem;}
+  header{text-align:center;padding:13vh 6vw 8vh;}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:6px 16px;font-size:.78rem;color:var(--accent);margin-bottom:26px;background:rgba(79,140,255,.07);animation:pulse 3.5s ease-in-out infinite;}
+  @keyframes pulse{50%{box-shadow:0 0 26px rgba(79,140,255,.4)}}
+  h1{font-size:clamp(2.4rem,6vw,4.7rem);line-height:1.05;font-weight:800;letter-spacing:-1px;}
+  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2) 40%,var(--accent3) 70%,var(--accent4));background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite;}
+  @keyframes shine{to{background-position:220% center}}
+  .sub{max-width:660px;margin:24px auto 30px;color:var(--muted);font-size:1.12rem;}
+
+  /* three pillars */
+  .pillars{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:0 auto 38px;}
+  .pillar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-weight:600;font-size:.95rem;backdrop-filter:blur(8px);transition:.3s;}
+  .pillar:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 0 24px rgba(79,140,255,.3);}
+  .pillar .pi{font-size:1.25rem;}
+  .pillar.p1{color:var(--accent4);} .pillar.p1 .pi{filter:drop-shadow(0 0 8px rgba(94,242,201,.6));}
+  .pillar.p2{color:var(--accent);}  .pillar.p2 .pi{filter:drop-shadow(0 0 8px rgba(79,140,255,.6));}
+  .pillar.p3{color:var(--accent3);} .pillar.p3 .pi{filter:drop-shadow(0 0 8px rgba(255,126,182,.6));}
+
   .cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
-  .btn-download,.btn-ghost{font:inherit;font-weight:600;padding:14px 30px;border-radius:12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:10px;transition:.3s;}
-  .btn-download{color:#04121a;border:none;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 24px rgba(0,229,255,.45);}
-  .btn-download:hover{transform:translateY(-3px);box-shadow:0 0 40px rgba(0,229,255,.7);}
+  .btn-download,.btn-ghost{font:inherit;font-weight:600;padding:14px 30px;border-radius:12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:10px;transition:.3s;border:none;}
+  .btn-download{color:#04121a;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 24px rgba(79,140,255,.45);}
+  .btn-download:hover{transform:translateY(-3px);box-shadow:0 0 40px rgba(124,77,255,.7);}
   .btn-ghost{color:var(--text);border:1px solid var(--line);background:var(--panel);}
-  .btn-ghost:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-3px);}
+  .btn-ghost:hover{border-color:var(--accent3);color:var(--accent3);transform:translateY(-3px);}
 
   section{padding:7vh 6vw;max-width:1180px;margin:0 auto;}
-  .eyebrow{color:var(--accent);font-size:.8rem;letter-spacing:3px;text-transform:uppercase;text-align:center;}
-  h2{text-align:center;font-size:clamp(1.8rem,4vw,2.8rem);margin:8px 0 50px;font-weight:800;}
+  .eyebrow{color:var(--accent4);font-size:.8rem;letter-spacing:3px;text-transform:uppercase;text-align:center;}
+  h2{text-align:center;font-size:clamp(1.8rem,4vw,2.8rem);margin:8px 0 16px;font-weight:800;}
+  .section-sub{text-align:center;color:var(--muted);max-width:620px;margin:0 auto 46px;}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px;backdrop-filter:blur(8px);transition:.3s;}
-  .card:hover{transform:translateY(-6px);border-color:var(--accent);box-shadow:0 16px 50px rgba(0,0,0,.5);}
-  .ic{font-size:1.7rem;width:52px;height:52px;display:grid;place-items:center;border-radius:12px;background:rgba(0,229,255,.1);margin-bottom:16px;}
+  .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px;backdrop-filter:blur(8px);transition:.3s;overflow:hidden;}
+  .card::before{content:'';position:absolute;inset:0;border-radius:18px;padding:1px;background:linear-gradient(135deg,transparent,transparent);opacity:0;transition:.3s;}
+  .card:hover{transform:translateY(-6px);border-color:var(--accent);box-shadow:0 16px 50px rgba(0,0,0,.5),0 0 30px rgba(79,140,255,.15);}
+  .ic{font-size:1.7rem;width:52px;height:52px;display:grid;place-items:center;border-radius:12px;background:rgba(79,140,255,.12);margin-bottom:16px;}
   .card h3{font-size:1.12rem;margin-bottom:8px;}
   .card p{color:var(--muted);font-size:.92rem;}
+  /* tint accents — rotate across cards for fun */
+  .card:nth-child(4n+1) .ic{background:rgba(79,140,255,.14);}
+  .card:nth-child(4n+2) .ic{background:rgba(196,164,255,.14);}
+  .card:nth-child(4n+3) .ic{background:rgba(255,126,182,.14);}
+  .card:nth-child(4n)   .ic{background:rgba(94,242,201,.14);}
 
-  /* realistic panel mock */
+  /* ===== INTERACTIVE PANEL MOCK ===== */
   .preview-wrap{display:flex;justify-content:center;}
-  .cr-mock{width:min(390px,100%);background:var(--cr-bg);color:var(--cr-text);border-radius:14px;overflow:hidden;
-    box-shadow:0 10px 40px rgba(0,0,0,.55),0 0 0 1px rgba(148,163,184,.08),0 0 40px rgba(0,229,255,.1);
-    border:1px solid rgba(148,163,184,.12);font-size:12px;animation:floaty 6s ease-in-out infinite;}
+  .cr-mock{position:relative;width:min(390px,100%);background:var(--m-bg);color:var(--m-text);border-radius:14px;overflow:hidden;
+    box-shadow:0 10px 40px rgba(0,0,0,.55),0 0 0 1px var(--m-border),0 0 50px rgba(79,140,255,.12);
+    border:1px solid var(--m-border);font-size:12px;animation:floaty 6s ease-in-out infinite;transition:background .4s,color .4s;}
   @keyframes floaty{50%{transform:translateY(-8px)}}
   .cr-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;
-    background:linear-gradient(135deg,var(--cr-head-a),var(--cr-head-b));border-bottom:1px solid rgba(148,163,184,.1);}
+    background:linear-gradient(135deg,var(--m-hA),var(--m-hB));border-bottom:1px solid var(--m-border);}
   .cr-title{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;}
-  .cr-ver{font-size:10px;color:#64748b;font-weight:500;}
+  .cr-ver{font-size:10px;color:var(--m-on);font-weight:700;background:var(--m-acc);padding:1px 6px;border-radius:6px;}
   .cr-ico{width:16px;height:16px;}
   .cr-hbtns{display:flex;gap:5px;}
-  .cr-hbtn{background:rgba(148,163,184,.12);color:#cbd5e1;border-radius:7px;padding:3px 7px;font-size:11px;font-weight:600;}
-  .cr-body{padding:10px 12px 14px;}
-  .cr-greet{padding:9px 12px;border-radius:11px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(99,102,241,.10));border:1px solid rgba(148,163,184,.14);font-size:11.5px;font-weight:600;margin-bottom:8px;}
-  .cr-greet small{display:block;font-weight:500;color:#94a3b8;font-size:10px;margin-top:2px;}
-  .cr-summary{padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,#1e293b,#18233a);border:1px solid rgba(148,163,184,.12);}
+  .cr-hbtn{background:var(--m-surf2);color:var(--m-dim);border-radius:7px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;user-select:none;transition:.15s;border:none;}
+  .cr-hbtn:hover{background:var(--m-acc);color:var(--m-on);}
+  .cr-hbtn:active{transform:scale(.9);}
+  #themeBtn{cursor:pointer;}
+  .cr-themehint{font-size:9px;color:var(--m-mut);text-align:center;padding:4px 0 0;}
+  .cr-body{padding:10px 12px 14px;position:relative;z-index:1;}
+  .cr-greet{padding:9px 12px;border-radius:11px;background:linear-gradient(135deg,var(--m-surf2),var(--m-surf));border:1px solid var(--m-border);font-size:11.5px;font-weight:600;margin-bottom:8px;}
+  .cr-greet small{display:block;font-weight:500;color:var(--m-dim);font-size:10px;margin-top:2px;}
+  .cr-summary{padding:12px 14px;border-radius:12px;background:var(--m-surf);border:1px solid var(--m-border);}
   .cr-sum-top{display:flex;align-items:center;justify-content:space-between;}
   .cr-score{display:flex;align-items:baseline;gap:4px;}
   .cr-score .num{font-size:30px;font-weight:800;line-height:1;color:#10b981;}
-  .cr-score .max{font-size:12px;color:#64748b;font-weight:600;}
+  .cr-score .max{font-size:12px;color:var(--m-mut);font-weight:600;}
   .cr-grade{padding:3px 10px;border-radius:8px;font-weight:800;font-size:14px;color:#fff;background:#10b981;}
   .cr-meta{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
-  .cr-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(148,163,184,.1);color:#cbd5e1;border:1px solid rgba(148,163,184,.1);font-size:11px;}
+  .cr-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:var(--m-surf);color:var(--m-dim);border:1px solid var(--m-border);font-size:11px;}
   .cr-chip.ok{background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.25);}
-  .cr-rowcard{margin-top:8px;border-radius:11px;background:#16203450;border:1px solid rgba(148,163,184,.1);
-    display:flex;align-items:center;justify-content:space-between;padding:10px 12px;}
-  .cr-rowcard .t{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;color:#f1f5f9;}
+  .cr-rowcard{margin-top:8px;border-radius:11px;background:var(--m-surf);border:1px solid var(--m-border);overflow:hidden;}
+  .cr-rowhead{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;user-select:none;transition:.15s;}
+  .cr-rowhead:hover{background:var(--m-surf2);}
+  .cr-rowhead .t{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;color:var(--m-text);}
   .cr-badge{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:700;color:#0b1220;}
-  .cr-chev{color:#64748b;font-size:11px;margin-left:8px;}
-  .cr-lb{margin-top:8px;border-radius:11px;background:#16203450;border:1px solid rgba(148,163,184,.1);padding:10px 12px;}
-  .cr-lb .lbl{font-weight:600;font-size:12px;color:#f1f5f9;display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-  .cr-lb-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;margin-top:4px;border:1px solid rgba(148,163,184,.08);}
+  .cr-chev{color:var(--m-mut);font-size:11px;margin-left:8px;transition:transform .2s;display:inline-block;}
+  .cr-rowcard.open .cr-chev{transform:rotate(90deg);}
+  .cr-rowbody{display:none;padding:0 12px 12px;font-size:11px;color:var(--m-dim);line-height:1.5;}
+  .cr-rowcard.open .cr-rowbody{display:block;}
+  .cr-kv{display:flex;justify-content:space-between;padding:2px 0;}
+  .cr-lb{margin-top:8px;border-radius:11px;background:var(--m-surf);border:1px solid var(--m-border);padding:10px 12px;}
+  .cr-lb .lbl{font-weight:600;font-size:12px;color:var(--m-text);display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .cr-lb-tabs{display:flex;gap:6px;margin-bottom:8px;}
+  .cr-lb-tab{flex:1;padding:5px;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:10.5px;background:var(--m-surf2);color:var(--m-dim);transition:.15s;}
+  .cr-lb-tab.active{background:linear-gradient(135deg,var(--m-acc),var(--m-acc2));color:var(--m-on);}
+  .cr-lb-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;margin-top:4px;border:1px solid var(--m-border);}
   .cr-lb-row.me{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.25);}
   .cr-lb-rank{width:22px;text-align:center;font-weight:800;}
   .cr-lb-user{flex:1;font-weight:600;}
-  .cr-lb-count{font-weight:800;color:#f1f5f9;}
-  .cr-primary{margin-top:10px;width:100%;padding:10px;border-radius:10px;font-weight:700;font-size:12px;color:#fff;text-align:center;background:linear-gradient(135deg,#10b981,#059669);}
+  .cr-lb-count{font-weight:800;color:var(--m-text);}
+  .cr-primary{margin-top:10px;width:100%;padding:10px;border-radius:10px;font-weight:700;font-size:12px;color:#fff;text-align:center;background:linear-gradient(135deg,#10b981,#059669);cursor:pointer;transition:.2s;}
+  .cr-primary:hover{filter:brightness(1.1);}
 
   footer{text-align:center;padding:46px 6vw;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;}
+  footer .hearts{color:var(--accent3);}
 </style>
 </head>
 <body>
 <div class="bg-fx"></div>
+<canvas id="stars"></canvas>
 <div class="grid-fx"></div>
 
 <nav>
   <div class="brand">
-    <!-- launcher artwork: red circle + two fast-forward triangles, animated colors -->
     <svg class="logo" viewBox="0 0 100 100" aria-label="Case Review Assistant">
       <circle class="ring" cx="50" cy="50" r="48"/>
       <polygon class="arrow" points="25,30 50,50 25,70"/>
@@ -134,12 +174,30 @@
 <header>
   <span class="pill">v0.27.0 · Tampermonkey Userscript</span>
   <h1>Review cases at the<br><span class="grad">speed of thought.</span></h1>
-  <p class="sub">A productivity engine for Cisco TAC case review — auto-extraction, bulk queues, team leaderboards, and achievements, all in one panel.</p>
+  <p class="sub">A productivity engine for Cisco TAC case review — built to make every review <strong>accurate</strong>, <strong>fast</strong>, and a little more <strong>fun</strong>.</p>
+
+  <div class="pillars">
+    <div class="pillar p1"><span class="pi">🎯</span> Built for Accuracy</div>
+    <div class="pillar p2"><span class="pi">⚡</span> Faster Reviews</div>
+    <div class="pillar p3"><span class="pi">🎉</span> Genuinely Fun</div>
+  </div>
+
   <div class="cta">
     <a href="/loader.user.js" download="cra-loader.user.js" class="btn-download">⬇ Install Loader</a>
-    <a href="#features" class="btn-ghost">Explore Features</a>
+    <a href="#preview" class="btn-ghost">▶ See it in action</a>
   </div>
 </header>
+
+<section id="why">
+  <p class="eyebrow">Why it exists</p>
+  <h2>Three things, done right</h2>
+  <p class="section-sub">Case review shouldn't be slow, error-prone, or soul-draining. The Assistant tackles all three at once.</p>
+  <div class="grid" style="max-width:980px;margin:0 auto;">
+    <div class="card"><div class="ic">🎯</div><h3>Accuracy first</h3><p>Every field is auto-extracted and cross-checked — owner, age, GCI freshness, phone logs, Sherlock handling and sentiment — with manual-verify flags surfaced so nothing slips through.</p></div>
+    <div class="card"><div class="ic">⚡</div><h3>Speed by design</h3><p>One click loads the panel, fills the Estarta template, and a bulk queue auto-advances through dozens of SRs. What took minutes now takes seconds.</p></div>
+    <div class="card"><div class="ic">🎉</div><h3>Fun on purpose</h3><p>Themes, particle effects, confetti, achievements and a team leaderboard turn a repetitive task into something you actually look forward to.</p></div>
+  </div>
+</section>
 
 <section id="features">
   <p class="eyebrow">Capabilities</p>
@@ -156,7 +214,7 @@
     <div class="card"><div class="ic">🏆</div><h3>Team Leaderboard</h3><p>Today / Week / Month / Total standings synced across the team, with medals and your row highlighted.</p></div>
     <div class="card"><div class="ic">🎖️</div><h3>Achievements</h3><p>Unlock 19+ badges — streaks, daily milestones, all-clear cases, and a hidden secret to discover.</p></div>
     <div class="card"><div class="ic">📜</div><h3>Review History</h3><p>A timeline merging reviews posted on the case with ones you logged here, complete with grades and authors.</p></div>
-    <div class="card"><div class="ic">🎨</div><h3>Eight Themes</h3><p>Midnight, Cyberpunk, Matrix, Crimson, Synthwave, Dracula, Nord & Solarized — on a draggable, resizable panel.</p></div>
+    <div class="card"><div class="ic">🎨</div><h3>Living Themes</h3><p>Midnight starlight, Cyberpunk rain, Sakura petals, Aurora bands, Royal gold dust & more — each with its own animated particle effect.</p></div>
     <div class="card"><div class="ic">📊</div><h3>Personal Stats</h3><p>Track today, this week, this month and all-time reviews, deduped once per case per day.</p></div>
     <div class="card"><div class="ic">💬</div><h3>Status Templates</h3><p>Auto-detects the latest Current Status from prior reviews and offers a dozen quick-pick templates.</p></div>
     <div class="card"><div class="ic">👋</div><h3>Smart Greetings</h3><p>Time-of-day aware welcome banners that keep the grind a little more human.</p></div>
@@ -169,41 +227,64 @@
 <section id="preview">
   <p class="eyebrow">In action</p>
   <h2>See the script in action</h2>
+  <p class="section-sub">This is a live mock-up — click the <strong>🎨</strong> to swap themes, expand the cards, and switch leaderboard tabs. Just like the real thing.</p>
   <div class="preview-wrap">
-    <div class="cr-mock">
+    <div class="cr-mock" id="mock">
       <div class="cr-head">
         <div class="cr-title">
           <svg class="cr-ico" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#E2231A"/><polygon points="25,30 50,50 25,70" fill="#fff"/><polygon points="50,30 75,50 50,70" fill="#fff"/></svg>
           Case Reader · a1b2c3 <span class="cr-ver">v0.27.0</span>
         </div>
-        <div class="cr-hbtns"><span class="cr-hbtn">🎨</span><span class="cr-hbtn">—</span><span class="cr-hbtn">×</span></div>
+        <div class="cr-hbtns"><button class="cr-hbtn" id="themeBtn" title="Cycle theme">🎨</button><button class="cr-hbtn" title="Minimize">—</button><button class="cr-hbtn" title="Close">×</button></div>
       </div>
       <div class="cr-body">
-        <div class="cr-greet">Good afternoon, user1 🌤️<small>Have a productive afternoon, user1 🚀</small></div>
+        <div class="cr-themehint" id="themeName">Theme: Midnight 🌙 — click 🎨 to cycle</div>
+        <div class="cr-greet">Good afternoon, odemar 🌤️<small>Have a productive afternoon, odemar 🚀</small></div>
         <div class="cr-summary">
           <div class="cr-sum-top">
             <div class="cr-score"><span class="num">92</span><span class="max">/100</span></div>
             <span class="cr-grade">A</span>
           </div>
           <div class="cr-meta">
-            <span class="cr-chip">👤 user1</span>
+            <span class="cr-chip">👤 odemar</span>
             <span class="cr-chip">📅 2 days</span>
             <span class="cr-chip ok">✓ all clear</span>
           </div>
         </div>
 
-        <div class="cr-rowcard"><span class="t">🩺 Health Breakdown</span><span><span class="cr-badge" style="background:#10b981;">A</span><span class="cr-chev">▶</span></span></div>
-        <div class="cr-rowcard"><span class="t">🔮 Sherlock Status</span><span><span class="cr-badge" style="background:#64748b;color:#fff;">No</span><span class="cr-chev">▶</span></span></div>
-        <div class="cr-rowcard"><span class="t">📞 Phone Log Check</span><span><span class="cr-badge" style="background:#10b981;">LOG ✓</span><span class="cr-chev">▶</span></span></div>
+        <div class="cr-rowcard" data-toggle>
+          <div class="cr-rowhead"><span class="t">🩺 Health Breakdown</span><span><span class="cr-badge" style="background:#10b981;">A</span><span class="cr-chev">▶</span></span></div>
+          <div class="cr-rowbody">
+            <div class="cr-kv"><span>GCI Freshness</span><b>25/25</b></div>
+            <div class="cr-kv"><span>Phone Log</span><b>20/20</b></div>
+            <div class="cr-kv"><span>Sentiment</span><b>20/20</b></div>
+            <div class="cr-kv"><span>Engineer Activity</span><b>20/20</b></div>
+            <div class="cr-kv"><span>Age</span><b>15/15</b></div>
+          </div>
+        </div>
+
+        <div class="cr-rowcard" data-toggle>
+          <div class="cr-rowhead"><span class="t">🔮 Sherlock Status</span><span><span class="cr-badge" style="background:#64748b;color:#fff;">No</span><span class="cr-chev">▶</span></span></div>
+          <div class="cr-rowbody">Handled by Sherlock: <b>No</b><br>Age &lt; 5 days → confident default, no manual verify needed.</div>
+        </div>
+
+        <div class="cr-rowcard" data-toggle>
+          <div class="cr-rowhead"><span class="t">📞 Phone Log Check</span><span><span class="cr-badge" style="background:#10b981;">LOG ✓</span><span class="cr-chev">▶</span></span></div>
+          <div class="cr-rowbody">Phone number on case: <b>Yes</b><br>Log within 3 days: <b>Yes</b> ✓</div>
+        </div>
 
         <div class="cr-lb">
           <div class="lbl">🏆 Leaderboard <span class="cr-badge" style="background:#6366f1;color:#fff;">Team</span></div>
-          <div class="cr-lb-row me"><span class="cr-lb-rank">🥇</span><span class="cr-lb-user">user1 (you)</span><span class="cr-lb-count">128</span></div>
-          <div class="cr-lb-row"><span class="cr-lb-rank">🥈</span><span class="cr-lb-user">user2</span><span class="cr-lb-count">114</span></div>
-          <div class="cr-lb-row"><span class="cr-lb-rank">🥉</span><span class="cr-lb-user">user3</span><span class="cr-lb-count">97</span></div>
+          <div class="cr-lb-tabs">
+            <button class="cr-lb-tab" data-period="today">Today</button>
+            <button class="cr-lb-tab active" data-period="week">Week</button>
+            <button class="cr-lb-tab" data-period="month">Month</button>
+            <button class="cr-lb-tab" data-period="total">Total</button>
+          </div>
+          <div id="lbList"></div>
         </div>
 
-        <div class="cr-primary">📝 Open Case Review Template</div>
+        <div class="cr-primary" id="celebrate">📝 Open Case Review Template</div>
       </div>
     </div>
   </div>
@@ -212,13 +293,14 @@
 <section id="unlock">
   <p class="eyebrow">Progression</p>
   <h2>Unlock as you go</h2>
+  <p class="section-sub">19+ achievements turn the daily grind into a game worth playing.</p>
   <div class="grid">
     <div class="card"><div class="ic">🎯</div><h3>First Blood</h3><p>Log your very first review and get on the board.</p></div>
     <div class="card"><div class="ic">🔥</div><h3>On Fire</h3><p>Knock out 5 reviews in a single day.</p></div>
     <div class="card"><div class="ic">🗓️</div><h3>Weekly Warrior</h3><p>Keep a review streak going across the work week.</p></div>
     <div class="card"><div class="ic">✨</div><h3>Flawless</h3><p>Review an all-clear case with no flags to verify.</p></div>
     <div class="card"><div class="ic">🧼</div><h3>Perfectionist</h3><p>Log 5 all-clear cases — spotless work all around.</p></div>
-    <div class="card"><div class="ic">🥷</div><h3>Secret Keeper</h3><p>Discover the hidden command tucked inside the script.</p></div>
+    <div class="card"><div class="ic">🥚</div><h3>Secret Keeper</h3><p>Discover the hidden command tucked inside the script.</p></div>
   </div>
 </section>
 
@@ -235,7 +317,94 @@
 </section>
 
 <footer>
-  Cisco Case Review Assistant · v0.27.0 · Internal tool
+  Cisco Case Review Assistant · v0.27.0 · Internal tool · Made with <span class="hearts">♥</span> for faster, more accurate &amp; more fun reviews
 </footer>
+
+<script>
+/* ---------- background drifting starfield (matches Midnight theme) ---------- */
+(function(){
+  const c = document.getElementById('stars'), x = c.getContext('2d');
+  let W,H,stars=[],shoot=null,timer=120;
+  function size(){ W=c.width=innerWidth; H=c.height=innerHeight;
+    stars = Array.from({length:Math.round(W*H/6000)},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.1+.3,ph:Math.random()*6.28,tw:Math.random()*.05+.02,base:Math.random()*.5+.15}));}
+  size(); addEventListener('resize',size);
+  (function loop(){
+    x.clearRect(0,0,W,H);
+    for(const s of stars){ s.ph+=s.tw; const a=Math.min(1,s.base+0.55*Math.abs(Math.sin(s.ph)));
+      x.globalAlpha=a; x.fillStyle='#cfe0ff'; x.beginPath(); x.arc(s.x,s.y,s.r,0,6.28); x.fill(); }
+    x.globalAlpha=1;
+    if(!shoot && --timer<=0){ const fl=Math.random()<.5; shoot={x:fl?Math.random()*W*.3:W*.7+Math.random()*W*.3,y:Math.random()*H*.4,vx:(fl?1:-1)*(5+Math.random()*4),vy:3+Math.random()*3,life:1};}
+    if(shoot){ shoot.x+=shoot.vx; shoot.y+=shoot.vy; shoot.life-=.012;
+      const tx=shoot.x-shoot.vx*5, ty=shoot.y-shoot.vy*5;
+      const g=x.createLinearGradient(shoot.x,shoot.y,tx,ty);
+      g.addColorStop(0,'rgba(255,255,255,'+Math.max(0,shoot.life)+')');
+      g.addColorStop(1,'rgba(120,170,255,0)');
+      x.strokeStyle=g; x.lineWidth=2; x.lineCap='round';
+      x.beginPath(); x.moveTo(shoot.x,shoot.y); x.lineTo(tx,ty); x.stroke();
+      if(shoot.life<=0||shoot.x<-60||shoot.x>W+60||shoot.y>H+60){shoot=null;timer=Math.round(180+Math.random()*240);}
+    }
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ---------- interactive mock: theme cycling ---------- */
+const THEMES = [
+  {name:'Midnight 🌙',  v:{'--m-bg':'#0a1326','--m-text':'#e6edff','--m-dim':'#9fb2e0','--m-mut':'#5e6f9e','--m-acc':'#4f8cff','--m-acc2':'#6aa6ff','--m-surf':'rgba(120,160,255,.08)','--m-surf2':'rgba(120,160,255,.16)','--m-border':'rgba(120,160,255,.16)','--m-on':'#04102b','--m-hA':'#1b2a4d','--m-hB':'#10182f'}},
+  {name:'Cyberpunk 🌃', v:{'--m-bg':'#10032b','--m-text':'#f4e9ff','--m-dim':'#c79bff','--m-mut':'#8a6abf','--m-acc':'#f72585','--m-acc2':'#00e5ff','--m-surf':'rgba(247,37,133,.10)','--m-surf2':'rgba(0,229,255,.16)','--m-border':'rgba(247,37,133,.28)','--m-on':'#15001f','--m-hA':'#3c096c','--m-hB':'#1a0533'}},
+  {name:'Matrix 🟩',    v:{'--m-bg':'#001000','--m-text':'#b6ffc4','--m-dim':'#5fd97a','--m-mut':'#2f8c45','--m-acc':'#00ff66','--m-acc2':'#39ff14','--m-surf':'rgba(0,255,102,.08)','--m-surf2':'rgba(0,255,102,.16)','--m-border':'rgba(0,255,102,.25)','--m-on':'#001a06','--m-hA':'#053b05','--m-hB':'#011a01'}},
+  {name:'Sakura 🌸',    v:{'--m-bg':'#ffe1ef','--m-text':'#3a1f2c','--m-dim':'#7a4a5e','--m-mut':'#a8728a','--m-acc':'#e0457e','--m-acc2':'#ff7eb6','--m-surf':'rgba(58,31,44,.06)','--m-surf2':'rgba(58,31,44,.12)','--m-border':'rgba(180,80,120,.30)','--m-on':'#ffffff','--m-hA':'#ff9ec7','--m-hB':'#f47aa9'}},
+  {name:'Aurora 🌌',    v:{'--m-bg':'#02111a','--m-text':'#e3fff4','--m-dim':'#8fe3cb','--m-mut':'#4d8c80','--m-acc':'#5ef2c9','--m-acc2':'#7dd3fc','--m-surf':'rgba(94,242,201,.10)','--m-surf2':'rgba(94,242,201,.18)','--m-border':'rgba(94,242,201,.24)','--m-on':'#02111a','--m-hA':'#0f4a4a','--m-hB':'#06222e'}},
+  {name:'Royal 👑',     v:{'--m-bg':'#140a2e','--m-text':'#f6efff','--m-dim':'#d4c2ff','--m-mut':'#8a78c0','--m-acc':'#ffd24a','--m-acc2':'#c4a4ff','--m-surf':'rgba(255,210,100,.08)','--m-surf2':'rgba(196,164,255,.18)','--m-border':'rgba(255,210,100,.22)','--m-on':'#1a0e3a','--m-hA':'#4a2596','--m-hB':'#1f1145'}},
+  {name:'Halloween 🎃', v:{'--m-bg':'#1a0d02','--m-text':'#ffd9a8','--m-dim':'#e0a060','--m-mut':'#a8703a','--m-acc':'#ff7518','--m-acc2':'#9333ea','--m-surf':'rgba(255,117,24,.11)','--m-surf2':'rgba(255,117,24,.19)','--m-border':'rgba(255,117,24,.26)','--m-on':'#1a0d02','--m-hA':'#5a2e08','--m-hB':'#241204'}},
+];
+let ti = 0;
+const mock = document.getElementById('mock');
+document.getElementById('themeBtn').addEventListener('click', () => {
+  ti = (ti + 1) % THEMES.length;
+  const t = THEMES[ti];
+  for (const [k,val] of Object.entries(t.v)) mock.style.setProperty(k,val);
+  document.getElementById('themeName').textContent = 'Theme: ' + t.name + ' — click 🎨 to cycle';
+});
+
+/* ---------- expandable cards ---------- */
+document.querySelectorAll('.cr-rowcard[data-toggle]').forEach(card => {
+  card.querySelector('.cr-rowhead').addEventListener('click', () => card.classList.toggle('open'));
+});
+/* open the first card by default */
+document.querySelector('.cr-rowcard[data-toggle]').classList.add('open');
+
+/* ---------- leaderboard tabs ---------- */
+const LB = {
+  today: [['odemar',9,true],['malsayya',7,false],['omemar',5,false]],
+  week:  [['odemar',38,true],['malsayya',31,false],['omemar',27,false]],
+  month: [['malsayya',122,false],['odemar',118,true],['omemar',96,false]],
+  total: [['odemar',1284,true],['malsayya',1190,false],['omemar',970,false]],
+};
+const medals = ['🥇','🥈','🥉'];
+function renderLB(period){
+  const list = document.getElementById('lbList');
+  const rows = LB[period].slice().sort((a,b)=>b[1]-a[1]);
+  list.innerHTML = rows.map((r,i)=>`<div class="cr-lb-row${r[2]?' me':''}"><span class="cr-lb-rank">${medals[i]||i+1}</span><span class="cr-lb-user">${r[0]}${r[2]?' (you)':''}</span><span class="cr-lb-count">${r[1]}</span></div>`).join('');
+}
+document.querySelectorAll('.cr-lb-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.cr-lb-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    renderLB(tab.dataset.period);
+  });
+});
+renderLB('week');
+
+/* ---------- confetti on the primary button ---------- */
+document.getElementById('celebrate').addEventListener('click',()=>{
+  const cv=document.createElement('canvas');
+  cv.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9999';
+  cv.width=innerWidth;cv.height=innerHeight;document.body.appendChild(cv);
+  const cx=cv.getContext('2d'),cols=['#4f8cff','#c4a4ff','#ff7eb6','#5ef2c9','#ffd24a','#10b981'];
+  const r=document.getElementById('celebrate').getBoundingClientRect();
+  const ps=Array.from({length:140},()=>{const a=Math.random()*6.28,s=4+Math.random()*7;return{x:r.left+r.width/2,y:r.top,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,sz:4+Math.random()*6,c:cols[Math.floor(Math.random()*cols.length)],rot:Math.random()*6.28,vr:(Math.random()-.5)*.3,life:1};});
+  let f=0;(function tick(){cx.clearRect(0,0,cv.width,cv.height);f++;for(const p of ps){p.vy+=.18;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.life=Math.max(0,1-f/140);cx.save();cx.globalAlpha=p.life;cx.translate(p.x,p.y);cx.rotate(p.rot);cx.fillStyle=p.c;cx.fillRect(-p.sz/2,-p.sz/2,p.sz,p.sz*.6);cx.restore();}f<140?requestAnimationFrame(tick):cv.remove();})();
+});
+</script>
 </body>
 </html>
