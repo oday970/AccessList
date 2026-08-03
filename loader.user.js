@@ -84,6 +84,20 @@
                     // that throws still leaves a usable copy behind.
                     set(CACHE_KEY, resp.responseText);
                     set(CHECKED_KEY, Date.now());
+
+                    // /script responds with an ETag containing the sha (see
+                    // worker/src/routes/client.js handleScript). Capture it
+                    // here so cold start records the sha it just fetched.
+                    // Without this, the first revalidation after any cold
+                    // start always sees a null SHA_KEY, treats the script as
+                    // changed, and re-downloads 327 KB unnecessarily. A
+                    // missing/malformed ETag just leaves SHA_KEY unset,
+                    // which degrades to that same harmless extra fetch.
+                    try {
+                        const etag = /^etag:\s*"?([^"\r\n]+)"?/im.exec(resp.responseHeaders || '');
+                        if (etag) set(SHA_KEY, etag[1]);
+                    } catch (e) {}
+
                     runCode(resp.responseText, reason);
                 } else {
                     runFromCache('Fetch HTTP ' + resp.status);
