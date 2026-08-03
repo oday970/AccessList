@@ -1,0 +1,7 @@
+/loader.user.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=300
+
+/admin/*
+  X-Robots-Tag: noindex
+  X-Frame-Options: DENY
