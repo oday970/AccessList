@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Cisco Case Review Assistant — Loader
 // @namespace    http://tampermonkey.net/
-// @version      0.27.5
+// @version      0.29.0
 // @description  Loads the Case Review Assistant script.
 // @author       Oday (odemar@cisco.com)
 // @match        https://scripts.cisco.com/app/quicker_csone/case/*
 // @match        https://ss.estarta.com/CaseReview/*
+// @updateURL    https://casereview.cc/loader.user.js
+// @downloadURL  https://casereview.cc/loader.user.js
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
@@ -14,9 +16,8 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_addValueChangeListener
+// @connect      casereview.cc
 // @connect      workers.dev
-// @connect      raw.githubusercontent.com
-// @connect      gist.githubusercontent.com
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -24,9 +25,12 @@
     'use strict';
 
     // ---- CONFIG ----
-    const WORKER_URL    = 'https://cra-loader.odayaamar97.workers.dev';
+    const API_BASE      = 'https://api.casereview.cc';
     const LOADER_SECRET = 'cra_a1b2c3d4e5f6g7h8';
     const CACHE_KEY     = 'craLoaderCachedCode';
+    const SHA_KEY       = 'craLoaderCachedSha';
+    const CHECKED_KEY   = 'craLoaderCheckedAt';
+    const CHECK_EVERY   = 60 * 60 * 1000;   // 1 hour
     // ----------------
 
     function runCode(code, sourceLabel) {
@@ -55,9 +59,11 @@
         }
     }
 
+    const get = (key, def) => { try { return GM_getValue(key, def); } catch (e) { return def; } };
+    const set = (key, val) => { try { GM_setValue(key, val); } catch (e) {} };
+
     function runFromCache(reason) {
-        let cached = null;
-        try { cached = GM_getValue(CACHE_KEY, null); } catch (e) {}
+        const cached = get(CACHE_KEY, null);
         if (cached) {
             console.warn('[CRA Loader] ' + reason + ' → running cached copy.');
             runCode(cached, 'cache');
@@ -66,26 +72,80 @@
         }
     }
 
+    function fetchScript(reason) {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: API_BASE + '/script?_=' + Date.now(),
+            headers: { 'x-cra-key': LOADER_SECRET },
+            timeout: 15000,
+            onload: (resp) => {
+                if (resp.status >= 200 && resp.status < 300 && resp.responseText) {
+                    // Cache last-known-good BEFORE running, so a script
+                    // that throws still leaves a usable copy behind.
+                    set(CACHE_KEY, resp.responseText);
+                    set(CHECKED_KEY, Date.now());
+                    runCode(resp.responseText, reason);
+                } else {
+                    runFromCache('Fetch HTTP ' + resp.status);
+                }
+            },
+            onerror:   () => runFromCache('Network error'),
+            ontimeout: () => runFromCache('Timed out')
+        });
+    }
+
     if (typeof GM_xmlhttpRequest !== 'function') {
         console.error('[CRA Loader] GM_xmlhttpRequest unavailable.');
         return;
     }
 
+    const cached    = get(CACHE_KEY, null);
+    const lastCheck = get(CHECKED_KEY, 0);
+
+    // No cached copy — nothing to run but a fresh fetch.
+    if (!cached) { fetchScript('remote (cold)'); return; }
+
+    // Inside the hourly window: run instantly, no network at all. This is
+    // what keeps the Worker under 100,000 requests/day — fetching on
+    // every page load costs ~21,000/day at 700 users, and it also removes
+    // a blocking round-trip from the case page.
+    if (Date.now() - lastCheck < CHECK_EVERY) {
+        runCode(cached, 'cache (fresh)');
+        return;
+    }
+
+    // Past the window: run the cache immediately anyway, then check for a
+    // new version in the background. The user never waits on the network;
+    // a change lands on the next page load.
+    runCode(cached, 'cache (revalidating)');
+
     GM_xmlhttpRequest({
         method: 'GET',
-        url: WORKER_URL + '?_=' + Date.now(),   // cache-bust
+        url: API_BASE + '/version?_=' + Date.now(),
         headers: { 'x-cra-key': LOADER_SECRET },
         timeout: 8000,
         onload: (resp) => {
-            if (resp.status >= 200 && resp.status < 300 && resp.responseText) {
-                const code = resp.responseText;
-                try { GM_setValue(CACHE_KEY, code); } catch (e) {}   // cache last-known-good first
-                runCode(code, 'remote');
-            } else {
-                runFromCache('Fetch HTTP ' + resp.status);
-            }
-        },
-        onerror:   () => runFromCache('Network error'),
-        ontimeout: () => runFromCache('Timed out')
+            if (resp.status < 200 || resp.status >= 300) return;
+            let meta = null;
+            try { meta = JSON.parse(resp.responseText); } catch (e) { return; }
+            if (!meta || !meta.sha) return;
+
+            set(CHECKED_KEY, Date.now());
+            if (meta.sha === get(SHA_KEY, null)) return;   // unchanged
+
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: API_BASE + '/script?_=' + Date.now(),
+                headers: { 'x-cra-key': LOADER_SECRET },
+                timeout: 15000,
+                onload: (r2) => {
+                    if (r2.status >= 200 && r2.status < 300 && r2.responseText) {
+                        set(CACHE_KEY, r2.responseText);
+                        set(SHA_KEY, meta.sha);
+                        console.log('[CRA Loader] Updated to ' + (meta.version || meta.sha.slice(0, 8)) + '; active on next load.');
+                    }
+                }
+            });
+        }
     });
 })();
