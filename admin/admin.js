@@ -97,7 +97,7 @@ async function loadUsers() {
         loadUsers();
         loadStats();
       } catch (err) {
-        alert(err.message || 'Could not revoke user.');
+        if (err.message !== 'unauthorized') alert(err.message || 'Could not revoke user.');
       }
     };
     tdActions.appendChild(editBtn);
@@ -174,16 +174,18 @@ async function loadThemes() {
           // Revert the checkbox instead of leaving it in a state the
           // server rejected, and say why.
           e.target.checked = !desired;
-          alert(err.message || 'Could not update theme.');
+          if (err.message !== 'unauthorized') alert(err.message || 'Could not update theme.');
         }
       };
       radio.onchange = async () => {
         try {
           await api('/admin/themes', { method: 'POST', body: JSON.stringify({ defaultTheme: t.id }) });
         } catch (err) {
-          // The API refuses a disabled theme as default, because every
-          // client would silently fall back to midnight.
-          alert('Enable the theme before making it the default.');
+          // The API refuses a disabled theme as default (400) and also
+          // returns 404 if the theme was deleted/renamed concurrently by
+          // another admin — prefer the server's own message over the
+          // hardcoded guess, falling back only when it has none.
+          if (err.message !== 'unauthorized') alert(err.message || 'Enable the theme before making it the default.');
         }
         loadThemes();
       };
@@ -323,7 +325,7 @@ document.querySelectorAll('[data-bulk]').forEach((b) => {
     } catch (err) {
       // Bulk-disabling every seasonal theme can zero out all enabled
       // themes, which the server also refuses with 409.
-      alert(err.message || 'Could not update themes.');
+      if (err.message !== 'unauthorized') alert(err.message || 'Could not update themes.');
     }
   };
 });
