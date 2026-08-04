@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Cisco Case Review Assistant — v0.27.4</title>
+<title>Cisco Case Review Assistant — v0.29.0</title>
 <style>
   :root{
     --bg:#070a16;
@@ -172,7 +172,7 @@
 </nav>
 
 <header>
-  <span class="pill">v0.27.4 · Tampermonkey Userscript</span>
+  <span class="pill"><span class="cra-version">v0.29.0</span> · Tampermonkey Userscript</span>
   <h1>Review cases at the<br><span class="grad">speed of thought.</span></h1>
   <p class="sub">A productivity engine for Cisco TAC case review — built to make every review <strong>accurate</strong>, <strong>fast</strong>, and a little more <strong>fun</strong>.</p>
 
@@ -233,7 +233,7 @@
       <div class="cr-head">
         <div class="cr-title">
           <svg class="cr-ico" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#E2231A"/><polygon points="25,30 50,50 25,70" fill="#fff"/><polygon points="50,30 75,50 50,70" fill="#fff"/></svg>
-          Case Reader · a1b2c3 <span class="cr-ver">v0.27.4</span>
+          Case Reader · a1b2c3 <span class="cr-ver cra-version">v0.29.0</span>
         </div>
         <div class="cr-hbtns"><button class="cr-hbtn" id="themeBtn" title="Cycle theme">🎨</button><button class="cr-hbtn" title="Minimize">—</button><button class="cr-hbtn" title="Close">×</button></div>
       </div>
@@ -317,7 +317,7 @@
 </section>
 
 <footer>
-  Cisco Case Review Assistant · v0.27.4 · Internal tool · Made with <span class="hearts">♥</span> for faster, more accurate &amp; more fun reviews
+  Cisco Case Review Assistant · <span class="cra-version">v0.29.0</span> · Internal tool · Made with <span class="hearts">♥</span> for faster, more accurate &amp; more fun reviews
 </footer>
 
 <script>
@@ -405,6 +405,32 @@ document.getElementById('celebrate').addEventListener('click',()=>{
   const ps=Array.from({length:140},()=>{const a=Math.random()*6.28,s=4+Math.random()*7;return{x:r.left+r.width/2,y:r.top,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,sz:4+Math.random()*6,c:cols[Math.floor(Math.random()*cols.length)],rot:Math.random()*6.28,vr:(Math.random()-.5)*.3,life:1};});
   let f=0;(function tick(){cx.clearRect(0,0,cv.width,cv.height);f++;for(const p of ps){p.vy+=.18;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.life=Math.max(0,1-f/140);cx.save();cx.globalAlpha=p.life;cx.translate(p.x,p.y);cx.rotate(p.rot);cx.fillStyle=p.c;cx.fillRect(-p.sz/2,-p.sz/2,p.sz,p.sz*.6);cx.restore();}f<140?requestAnimationFrame(tick):cv.remove();})();
 });
+
+/* ---------- self-updating version display ----------
+   Fetches the live script version from the worker API so this page
+   never drifts from the actual cra.user.js version. Fails silently —
+   if the fetch errors, times out, or the API returns no version, the
+   hardcoded text above is left untouched. */
+(function(){
+  // This key is not a secret: it already ships in loader.user.js, which
+  // is served publicly from this same origin. Reusing it here exposes
+  // nothing that isn't already public.
+  const CRA_API_KEY = 'cra_a1b2c3d4e5f6g7h8';
+  fetch('https://api.casereview.cc/version', {
+    headers: { 'x-cra-key': CRA_API_KEY },
+    signal: AbortSignal.timeout(5000)
+  })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      const v = data && data.version;
+      if (!v) return;
+      const text = 'v' + v;
+      document.querySelectorAll('.cra-version').forEach(el => {
+        el.textContent = text;
+      });
+    })
+    .catch(() => { /* leave hardcoded version text as-is */ });
+})();
 </script>
 </body>
 </html>
