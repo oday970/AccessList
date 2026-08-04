@@ -94,7 +94,14 @@
                     // missing/malformed ETag just leaves SHA_KEY unset,
                     // which degrades to that same harmless extra fetch.
                     try {
-                        const etag = /^etag:\s*"?([^"\r\n]+)"?/im.exec(resp.responseHeaders || '');
+                        // The Worker sends a STRONG etag ("<sha>"), but Cloudflare
+                        // rewrites it to a WEAK one (W/"<sha>") when it compresses
+                        // the response — so the W/ prefix must be tolerated here.
+                        // Without it this captures the literal 'W/', which never
+                        // matches the bare sha from /version, and every hourly
+                        // revalidation re-downloads the whole 317 KB script.
+                        // Verified against the live api.casereview.cc response.
+                        const etag = /^etag:\s*(?:W\/)?"?([^"\r\n]+)"?/im.exec(resp.responseHeaders || '');
                         if (etag) set(SHA_KEY, etag[1]);
                     } catch (e) {}
 
