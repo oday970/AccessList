@@ -18,6 +18,13 @@
 // @grant        GM_addValueChangeListener
 // @connect      casereview.cc
 // @connect      workers.dev
+// TRANSITION GRANT — remove in a later version bump, after cutover.
+// Between publishing this loader and merging the new client, the Worker still
+// serves the OLD client, which fetches auth.json from raw.githubusercontent.com.
+// Tampermonkey attributes that request to THIS file, so without this grant
+// every user gets a permission prompt on every auth sync for the whole
+// ~24h propagation window. The new client never calls this host.
+// @connect      raw.githubusercontent.com
 // @run-at       document-idle
 // ==/UserScript==
 
