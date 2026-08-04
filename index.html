@@ -412,12 +412,12 @@ document.getElementById('celebrate').addEventListener('click',()=>{
    if the fetch errors, times out, or the API returns no version, the
    hardcoded text above is left untouched. */
 (function(){
-  // This key is not a secret: it already ships in loader.user.js, which
-  // is served publicly from this same origin. Reusing it here exposes
-  // nothing that isn't already public.
-  const CRA_API_KEY = 'cra_a1b2c3d4e5f6g7h8';
+  // No API key here on purpose. /version is ungated server-side because it
+  // returns only a content hash and a version string. The shared x-cra-key
+  // is already public (it ships in loader.user.js), so embedding it would
+  // leak nothing new — but a page that does not need a key should not carry
+  // one, or it gets copied into a page that does.
   fetch('https://api.casereview.cc/version', {
-    headers: { 'x-cra-key': CRA_API_KEY },
     signal: AbortSignal.timeout(5000)
   })
     .then(r => r.ok ? r.json() : null)
