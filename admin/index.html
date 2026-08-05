@@ -5,91 +5,164 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>CRA Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jersey+15&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+<defs>
+  <g id="i-stack" fill="none" stroke-linecap="square"><path d="M2 5 8 2l6 3-6 3-6-3Z"/><path d="M2 9l6 3 6-3"/><path d="M2 12l6 3 6-3"/></g>
+</defs>
+</svg>
+
 <section id="login-view">
-  <form id="login-form">
-    <h1>🔴 CRA Admin</h1>
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-    <button type="submit">Sign in</button>
-    <p id="login-error" class="err" hidden></p>
+  <form id="login-form" novalidate>
+    <h1 class="mark">
+      <svg width="22" height="22" viewBox="0 0 16 16" stroke="var(--spot)" stroke-width="2" aria-hidden="true" focusable="false"><use href="#i-stack"/></svg>
+      CRA Admin
+    </h1>
+    <p class="hint">Manages the Case Review Assistant allow-list.</p>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <button type="submit" id="login-submit" class="primary">Sign in</button>
+    <p id="login-error" class="err" role="alert" hidden></p>
   </form>
 </section>
 
 <main id="app-view" hidden>
   <header>
-    <h1>🔴 CRA Admin</h1>
-    <div id="stats-bar"></div>
+    <h1 class="mark">
+      <svg width="20" height="20" viewBox="0 0 16 16" stroke="var(--spot)" stroke-width="2" aria-hidden="true" focusable="false"><use href="#i-stack"/></svg>
+      CRA Admin
+    </h1>
+    <p id="stats-bar" aria-live="polite"></p>
     <button id="logout">Sign out</button>
   </header>
 
-  <nav id="tabs">
-    <button data-tab="users" class="active">Users</button>
-    <button data-tab="themes">Themes</button>
-    <button data-tab="audit">Audit</button>
+  <!-- replaces the silent logout: a transient failure says so and stays put -->
+  <div id="banner" role="alert" hidden>
+    <p id="banner-text"></p>
+    <button id="banner-retry" type="button">Retry</button>
+    <button id="banner-dismiss" type="button">Dismiss</button>
+  </div>
+
+  <nav id="tabs" role="tablist" aria-label="Admin sections">
+    <button role="tab" id="tab-btn-users"  aria-selected="true"  aria-controls="tab-users"  data-tab="users">Users</button>
+    <button role="tab" id="tab-btn-themes" aria-selected="false" aria-controls="tab-themes" data-tab="themes" tabindex="-1">Themes</button>
+    <button role="tab" id="tab-btn-audit"  aria-selected="false" aria-controls="tab-audit"  data-tab="audit"  tabindex="-1">Audit</button>
   </nav>
 
-  <section id="tab-users" class="tab">
+  <section id="tab-users" class="tab" role="tabpanel" aria-labelledby="tab-btn-users" tabindex="0">
+    <h2 class="sr-only">Users</h2>
     <div class="toolbar">
+      <label for="user-search" class="sr-only">Search username</label>
       <input id="user-search" type="search" placeholder="Search username…">
-      <button id="add-user-btn">+ Add user</button>
+      <span class="spacer"></span>
+      <button id="add-user-btn" class="primary">Add user</button>
       <button id="bulk-btn">Bulk add</button>
     </div>
     <div class="table-wrap">
-    <table id="user-table">
-      <thead><tr><th>Username</th><th>Access</th><th>Rainbow</th><th>Themes</th><th>Note</th><th></th></tr></thead>
-      <tbody></tbody>
-    </table>
+      <table id="user-table">
+        <caption id="users-caption">Allow-list</caption>
+        <thead><tr>
+          <th scope="col">Username</th>
+          <th scope="col">Access</th>
+          <th scope="col">Rainbow name</th>
+          <th scope="col">Theme picker</th>
+          <th scope="col">Note</th>
+          <th scope="col">Actions</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
     <div class="toolbar">
       <button id="prev-page">Previous</button>
-      <span id="page-info"></span>
+      <span id="page-info" aria-live="polite"></span>
       <button id="next-page">Next</button>
+      <span class="spacer"></span>
+      <label for="page-size" class="hint">Rows</label>
+      <select id="page-size">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+      </select>
     </div>
   </section>
 
-  <section id="tab-themes" class="tab" hidden>
+  <section id="tab-themes" class="tab" role="tabpanel" aria-labelledby="tab-btn-themes" tabindex="0" hidden>
+    <h2>Themes</h2>
     <div class="toolbar">
       <button data-bulk="on">Enable all seasonal</button>
       <button data-bulk="off">Disable all seasonal</button>
     </div>
+    <p class="hint-strong">The default theme must be one that is enabled, and at least one theme must stay enabled.</p>
     <h2>Standard</h2>
-    <div id="theme-standard"></div>
+    <div id="theme-standard" class="theme-list"></div>
     <h2>Seasonal</h2>
-    <div id="theme-seasonal"></div>
+    <div id="theme-seasonal" class="theme-list"></div>
   </section>
 
-  <section id="tab-audit" class="tab" hidden>
-    <p class="hint">Refused writes. This table should stay near-empty; entries mean malformed or forged requests.</p>
+  <section id="tab-audit" class="tab" role="tabpanel" aria-labelledby="tab-btn-audit" tabindex="0" hidden>
+    <h2>Audit</h2>
+    <p class="hint-strong">Refused writes. This table should stay near-empty; entries mean malformed or forged requests.</p>
     <div class="table-wrap">
-    <table id="audit-table">
-      <thead><tr><th>When</th><th>User</th><th>Reason</th><th>Detail</th></tr></thead>
-      <tbody></tbody>
-    </table>
+      <table id="audit-table">
+        <caption>Refused writes, most recent first</caption>
+        <thead><tr>
+          <th scope="col">When</th>
+          <th scope="col">User</th>
+          <th scope="col">Reason</th>
+          <th scope="col">Detail</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </section>
 </main>
 
-<dialog id="user-dialog">
-  <form method="dialog" id="user-form">
+<div id="toast" role="status" hidden>
+  <p id="toast-text"></p>
+  <button id="toast-undo" type="button">Undo</button>
+  <button id="toast-close" type="button">Dismiss</button>
+</div>
+
+<dialog id="user-dialog" aria-labelledby="user-dialog-title">
+  <form id="user-form" novalidate>
     <h2 id="user-dialog-title">Add user</h2>
-    <label>Username <input id="f-username" required maxlength="32"></label>
-    <label><input id="f-authorized" type="checkbox" checked> Authorized</label>
-    <label><input id="f-rainbow" type="checkbox"> Rainbow name</label>
-    <label><input id="f-themes" type="checkbox"> Theme picker</label>
-    <label>Note <input id="f-note" maxlength="500"></label>
-    <menu><button type="submit" value="cancel" formnovalidate id="f-cancel">Cancel</button><button type="submit" id="f-save" value="save">Save</button></menu>
+    <label>Username
+      <input id="f-username" required maxlength="32" autocomplete="off">
+    </label>
+    <p class="field-err" id="f-username-err"></p>
+    <label class="inline"><input id="f-authorized" type="checkbox" checked> Authorized &mdash; can use the assistant</label>
+    <label class="inline"><input id="f-rainbow" type="checkbox"> Rainbow name &mdash; animated name on the leaderboard</label>
+    <label class="inline"><input id="f-themes" type="checkbox"> Theme picker &mdash; may change the panel theme</label>
+    <label>Note <span class="hint">(optional, for other admins)</span>
+      <input id="f-note" maxlength="500" autocomplete="off">
+    </label>
+    <p class="field-err" id="f-form-err"></p>
+    <menu>
+      <button type="button" id="f-cancel">Cancel</button>
+      <button type="submit" id="f-save" class="primary">Save</button>
+    </menu>
   </form>
 </dialog>
 
-<dialog id="bulk-dialog">
-  <form method="dialog" id="bulk-form">
-    <h2>Bulk add</h2>
-    <p class="hint">One username per line. Existing users are left untouched.</p>
-    <textarea id="f-bulk" rows="12"></textarea>
-    <menu><button type="submit" value="cancel" formnovalidate id="f-bulk-cancel">Cancel</button><button type="submit" value="save" id="f-bulk-save">Add all</button></menu>
+<dialog id="bulk-dialog" aria-labelledby="bulk-dialog-title">
+  <form id="bulk-form" novalidate>
+    <h2 id="bulk-dialog-title">Bulk add</h2>
+    <label for="f-bulk">Usernames</label>
+    <p class="hint">One per line. Commas, semicolons and spaces also separate. Existing users are left untouched.</p>
+    <textarea id="f-bulk" rows="10"></textarea>
+    <div id="bulk-preview" class="bulk-result" hidden></div>
+    <p class="field-err" id="f-bulk-err"></p>
+    <menu>
+      <button type="button" id="f-bulk-cancel">Close</button>
+      <button type="button" id="f-bulk-check">Check list</button>
+      <button type="submit" id="f-bulk-save" class="primary">Add all</button>
+    </menu>
   </form>
 </dialog>
 
