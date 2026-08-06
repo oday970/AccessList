@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Case Review Assistant — every case, scored before you read it</title>
+<title>Case Review Assistant - every case, scored before you read it</title>
 <meta name="description" content="A panel that opens inside the case page, scores the case against your team's five review criteria, and fills the review template. Access is by allow-list.">
 <meta name="color-scheme" content="light">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,9 +11,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;700;800&family=Archivo:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 /* ==========================================================
-   THE OVERLAP — transparent pigment passes on mulberry paper.
+   THE OVERLAP - transparent pigment passes on mulberry paper.
    Three inks: cyan, amber, scarlet. Their overlaps are not
-   chosen, they are computed — every mixed colour on this page
+   chosen, they are computed - every mixed colour on this page
    comes from mix-blend-mode:multiply, the way wet pigment
    actually behaves. Nothing here is a flat swatch of "orange";
    orange is what happens when amber crosses scarlet.
@@ -374,8 +374,8 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 .steps a{color:var(--cyan-t);text-underline-offset:3px}
 
 /* ---- download: two tools, one place ------------------------
-   Same construction as .steps — a 1px hairline grid over the rule
-   colour, cells painted back in --paper — so the two sections read
+   Same construction as .steps - a 1px hairline grid over the rule
+   colour, cells painted back in --paper - so the two sections read
    as one system rather than two. Cards stretch to equal height so
    the buttons sit on a shared baseline whatever the copy length. */
 .dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1px;background:rgba(42,38,34,.2);border:var(--rule)}
@@ -416,7 +416,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
 <body>
 
 <!--
-  THESIS: A case review is five transparent passes laid over one paper —
+  THESIS: A case review is five transparent passes laid over one paper -
   the score is what you see through them. Refuses the dev-tool page that
   opens with a dark gradient hero and a three-up feature grid.
   OWN-WORLD: Mulberry paper; cyan, amber and scarlet pigment at 62% alpha
@@ -428,7 +428,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
   FIRST VIEWPORT: Offer in one stencil line, allow-list gate directly under
   it, two actions; right, the case sheet where five passes flood in, one out
   of register with its ghost, stamped 88/100.
-  FORM: The Overlap — transparent screenprint, rendered in watercolour's hand.
+  FORM: The Overlap - transparent screenprint, rendered in watercolour's hand.
   Candidate 3 of 7; challenger chosen over the roll. Seed 575e4dc5.
   FINISH: unreviewed and undocumented is unfinished; this build ends with the
   finish review, the verdict, and DESIGN.md
@@ -690,7 +690,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
     </div>
   </section>
 
-  <!-- ============ THE GAME LAYER — one section ============ -->
+  <!-- ============ THE GAME LAYER - one section ============ -->
   <section id="team">
     <div class="wrap">
       <div class="sec-head">
@@ -790,7 +790,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
         <li>
           <span class="n">3</span>
           <h3>Add your tool</h3>
-          <p>Both downloads are at the <a href="#download">foot of this page</a> — take the assistant,
+          <p>Both downloads are at the <a href="#download">foot of this page</a> - take the assistant,
           the guard, or both. Tampermonkey offers a one-click install on each, and each arrives as a
           small loader that keeps the real script current, so you install once and never chase a
           version.</p>
@@ -834,7 +834,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
   <!-- ============ DOWNLOAD ============ -->
   <!-- Both tools install from here and nowhere else, so there is one
        version number per tool to keep true instead of two. The numbers
-       shown are the APP versions, not the loaders' — .cra-version and
+       shown are the APP versions, not the loaders' - .cra-version and
        .sla-version are filled live from api.casereview.cc by the sync
        at the foot of this file, which is why they carry no hard-coded
        fallback worth trusting. The loader version is deliberately not
@@ -844,7 +844,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
     <div class="wrap">
       <div class="sec-head">
         <h2>Two tools, one place.</h2>
-        <p class="lede">They are separate scripts with separate rules. Take one, or both —
+        <p class="lede">They are separate scripts with separate rules. Take one, or both -
         neither needs the other to work.</p>
       </div>
       <div class="dl">
@@ -899,16 +899,14 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
   <div class="wrap colo">
     <div>
       <h2 style="font-size:clamp(1.8rem,3.6vw,2.8rem)">Who made this.</h2>
-      <p class="lede" style="margin-top:18px">Built and maintained by Oday Emar. If something is wrong,
-      or the launcher will not appear, message me directly. It is a short list of users, so a message gets to a person
-      rather than a queue.</p>
+      <p class="lede" style="margin-top:18px">Built and maintained by Oday Emar. Message me over Webex for bugs or future suggestions/features.</p>
     </div>
     <div>
       <dl>
-        <dt>Maintainer</dt><dd>Oday Emar — <a href="mailto:odemar@cisco.com">odemar@cisco.com</a></dd>
-        <dt>Assistant</dt><dd><span class="cra-version">0.31.0</span> — updates itself</dd>
-        <dt>Loader</dt><dd>0.29.0 — <a href="/loader.user.js">source</a></dd>
-        <dt>SLA Guard</dt><dd><span class="sla-version">1.6.1</span> — <a href="/sla.user.js">loader</a></dd>
+        <dt>Maintainer</dt><dd>Oday Emar - <a href="mailto:odemar@cisco.com">odemar@cisco.com</a></dd>
+        <dt>Assistant</dt><dd><span class="cra-version">0.31.0</span> - updates itself</dd>
+        <dt>Loader</dt><dd>0.29.0 - <a href="/loader.user.js">source</a></dd>
+        <dt>SLA Guard</dt><dd><span class="sla-version">1.6.1</span> - <a href="/sla.user.js">loader</a></dd>
         <dt>Runs on</dt><dd>The case page and the review page</dd>
         <dt>Access</dt><dd>Allow-list, by request</dd>
       </dl>
@@ -948,7 +946,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
   }
 
   /* ---- version sync. Unauthenticated by design: this page needs no key,
-         so it carries none. Writes only into .cra-version — the assistant's
+         so it carries none. Writes only into .cra-version - the assistant's
          number, which is not the loader's. Falls back silently. ---- */
   if (window.fetch) {
     var live = [
