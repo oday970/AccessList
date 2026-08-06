@@ -120,6 +120,7 @@ async function refreshGroups() {
   const data = await api('/admin/workgroups');
   groups = data.workgroups || [];
   fillGroupFilter();
+  fillBoardFilter();
   return groups;
 }
 
@@ -342,9 +343,21 @@ async function loadUsers() {
         handleError(err, 'Revoking ' + u.username);
       }
     };
+    // Revoke is reversible and keeps the row; Delete removes it and keeps
+    // the history. Both are offered because they answer different
+    // questions — "they left the team" versus "they should never have
+    // been on this list".
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'danger';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.setAttribute('aria-label', 'Delete ' + u.username);
+    deleteBtn.onclick = () => openDeleteDialog(u);
+
     tdActions.appendChild(editBtn);
     tdActions.appendChild(document.createTextNode(' '));
     tdActions.appendChild(revokeBtn);
+    tdActions.appendChild(document.createTextNode(' '));
+    tdActions.appendChild(deleteBtn);
 
     tr.appendChild(tdUser);
     tr.appendChild(tdAccess);
@@ -360,6 +373,117 @@ async function loadUsers() {
   $('#page-info').textContent = `${from}–${Math.min(data.total, (page + 1) * PAGE_SIZE)} of ${data.total}`;
   $('#prev-page').disabled = page === 0;
   $('#next-page').disabled = (page + 1) * PAGE_SIZE >= data.total;
+}
+
+/* ---- delete + standings ---------------------------------------- */
+let pendingDelete = null;
+let pendingStats = null;
+
+function openDeleteDialog(user) {
+  pendingDelete = user;
+  $('#delete-dialog-title').textContent = 'Delete ' + user.username;
+  $('#f-board-hide').checked = true;
+  $('#delete-dialog').returnValue = '';
+  $('#delete-dialog').showModal();
+}
+
+function openStatsDialog(row) {
+  pendingStats = row;
+  $('#stats-dialog-title').textContent = 'Edit ' + row.username;
+  const overridden = row.total_override !== null && row.total_override !== undefined;
+  $('#f-stats-total').value = row.total;
+  // Showing the real number matters when an override is hiding it —
+  // otherwise there is no way to tell what clearing would restore.
+  $('#stats-real').textContent = overridden
+    ? '(overridden — their real count is ' + (row.raw_total || 0) + ')'
+    : '(their real count)';
+  $('#f-stats-clear').disabled = !overridden;
+  $('#stats-dialog').returnValue = '';
+  $('#stats-dialog').showModal();
+}
+
+/* ---- the admin's view of the board ------------------------------ */
+function fillBoardFilter() {
+  const sel = $('#board-group-filter');
+  const keep = sel.value;
+  clearChildren(sel);
+  const all = document.createElement('option');
+  all.value = '0';
+  all.textContent = 'All workgroups';
+  sel.appendChild(all);
+  for (const g of groups) {
+    const opt = document.createElement('option');
+    opt.value = String(g.id);
+    opt.textContent = g.name;
+    sel.appendChild(opt);
+  }
+  sel.value = [...sel.options].some((o) => o.value === keep) ? keep : '0';
+}
+
+async function loadBoard() {
+  const tbody = $('#board-table tbody');
+  const wg = $('#board-group-filter').value || '0';
+  let data;
+  try {
+    data = await api('/admin/leaderboard?workgroup_id=' + encodeURIComponent(wg));
+  } catch (err) {
+    clearChildren(tbody);
+    stateRow(tbody, 6, 'Could not load', 'The board is unavailable, not empty.');
+    handleError(err, 'Loading the leaderboard', () => loadBoard());
+    return;
+  }
+  clearChildren(tbody);
+
+  if (!data.rows.length) {
+    stateRow(tbody, 6, 'Nobody here', wg === '0'
+      ? 'No users on the allow-list yet.'
+      : 'This workgroup has no members.');
+    return;
+  }
+
+  data.rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+
+    const tdRank = document.createElement('td');
+    tdRank.textContent = String(i + 1);
+
+    const tdUser = document.createElement('td');
+    tdUser.textContent = r.username;
+    if (!r.authorized) tdUser.className = 'revoked';
+
+    const tdGroup = document.createElement('td');
+    tdGroup.textContent = r.workgroup || '—';
+
+    const tdTotal = document.createElement('td');
+    tdTotal.textContent = String(r.total);
+    if (r.total_override !== null && r.total_override !== undefined) {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = 'edited';
+      tag.title = 'Real count: ' + (r.raw_total || 0);
+      tdTotal.appendChild(document.createTextNode(' '));
+      tdTotal.appendChild(tag);
+    }
+
+    const tdAcc = document.createElement('td');
+    tdAcc.textContent = String(r.acc);
+
+    const tdActions = document.createElement('td');
+    tdActions.className = 'acts';
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.setAttribute('aria-label', 'Edit standing for ' + r.username);
+    editBtn.onclick = () => openStatsDialog(r);
+    tdActions.appendChild(editBtn);
+
+    tr.appendChild(tdRank);
+    tr.appendChild(tdUser);
+    tr.appendChild(tdGroup);
+    tr.appendChild(tdTotal);
+    tr.appendChild(tdAcc);
+    tr.appendChild(tdActions);
+    tbody.appendChild(tr);
+  });
 }
 
 function openUserDialog(user) {
@@ -573,6 +697,7 @@ function selectTab(btn) {
   });
   document.querySelectorAll('.tab').forEach((s) => { s.hidden = s.id !== 'tab-' + btn.dataset.tab; });
   if (btn.dataset.tab === 'groups') loadGroups();
+  if (btn.dataset.tab === 'board') loadBoard();
   if (btn.dataset.tab === 'themes') loadThemes().catch((err) => handleError(err, 'Loading themes', () => loadThemes().catch(() => {})));
   if (btn.dataset.tab === 'audit') loadAudit().catch((err) => handleError(err, 'Loading the audit log'));
 }
@@ -618,6 +743,52 @@ $('#refresh-users-btn').onclick = async () => {
     btn.disabled = false;
   }
 };
+
+$('#board-group-filter').onchange = () => loadBoard();
+$('#refresh-board-btn').onclick = async () => {
+  const btn = $('#refresh-board-btn');
+  btn.disabled = true;
+  try { await refreshGroups(); await loadBoard(); }
+  catch (err) { handleError(err, 'Refreshing the leaderboard'); }
+  finally { btn.disabled = false; }
+};
+
+$('#delete-dialog').addEventListener('close', async () => {
+  const dlg = $('#delete-dialog');
+  const user = pendingDelete;
+  pendingDelete = null;
+  if (dlg.returnValue !== 'save' || !user) return;
+  const board = $('#f-board-keep').checked ? 'keep' : 'hide';
+  try {
+    await api('/admin/users/' + encodeURIComponent(user.username) + '?mode=delete&board=' + board,
+      { method: 'DELETE' });
+    loadUsers();
+    loadGroups().catch(() => {});   // member counts changed
+    loadStats();
+  } catch (err) {
+    handleError(err, 'Deleting ' + user.username);
+  }
+});
+
+$('#stats-dialog').addEventListener('close', async () => {
+  const dlg = $('#stats-dialog');
+  const row = pendingStats;
+  pendingStats = null;
+  if (!row || (dlg.returnValue !== 'save' && dlg.returnValue !== 'clear')) return;
+  // 'clear' sends null, which the server reads as "drop the override".
+  const total = dlg.returnValue === 'clear' ? null : Number($('#f-stats-total').value);
+  if (total !== null && (!Number.isInteger(total) || total < 0)) {
+    showBanner('Cases reviewed must be a whole number, zero or more.');
+    return;
+  }
+  try {
+    await api('/admin/users/' + encodeURIComponent(row.username) + '/stats',
+      { method: 'POST', body: JSON.stringify({ total }) });
+    loadBoard();
+  } catch (err) {
+    handleError(err, 'Saving the standing for ' + row.username);
+  }
+});
 
 $('#refresh-audit-btn').onclick = () => loadAudit().catch((err) => handleError(err, 'Refreshing the audit log'));
 $('#export-audit-btn').onclick = () => exportAudit();

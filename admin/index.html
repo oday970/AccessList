@@ -69,6 +69,7 @@
   <nav id="tabs" role="tablist" aria-label="Admin sections">
     <button role="tab" id="tab-btn-users"  aria-selected="true"  aria-controls="tab-users"  data-tab="users">Users</button>
     <button role="tab" id="tab-btn-groups" aria-selected="false" aria-controls="tab-groups" data-tab="groups" tabindex="-1">Groups</button>
+    <button role="tab" id="tab-btn-board"  aria-selected="false" aria-controls="tab-board"  data-tab="board"  tabindex="-1">Leaderboard</button>
     <button role="tab" id="tab-btn-themes" aria-selected="false" aria-controls="tab-themes" data-tab="themes" tabindex="-1">Themes</button>
     <button role="tab" id="tab-btn-audit"  aria-selected="false" aria-controls="tab-audit"  data-tab="audit"  tabindex="-1">Audit</button>
   </nav>
@@ -121,6 +122,30 @@
         <thead><tr>
           <th scope="col">Name</th>
           <th scope="col">Members</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="tab-board" class="tab" role="tabpanel" aria-labelledby="tab-btn-board" tabindex="0" hidden>
+    <h2>Leaderboard</h2>
+    <p class="hint-strong">Live from the database, not the 15-minute snapshot, so an edit shows here immediately — reviewers see it at the next rebuild. An edited standing is marked; clearing it restores the real count.</p>
+    <div class="toolbar">
+      <label for="board-group-filter" class="sr-only">Workgroup</label>
+      <select id="board-group-filter"></select>
+      <button id="refresh-board-btn">Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table id="board-table">
+        <caption>Standings, highest first</caption>
+        <thead><tr>
+          <th scope="col">#</th>
+          <th scope="col">Username</th>
+          <th scope="col">Workgroup</th>
+          <th scope="col">Cases reviewed</th>
+          <th scope="col">All-clear</th>
           <th scope="col"><span class="sr-only">Actions</span></th>
         </tr></thead>
         <tbody></tbody>
@@ -187,6 +212,39 @@
   </form>
 </dialog>
 
+<dialog id="delete-dialog">
+  <form method="dialog" id="delete-form">
+    <h2 id="delete-dialog-title">Delete user</h2>
+    <p class="hint">Removes them from the allow-list. Their review history, achievements and
+    standing are <b>kept</b>, so re-adding the same username restores everything.</p>
+    <fieldset>
+      <legend>Their leaderboard entry</legend>
+      <label class="inline"><input type="radio" name="board" id="f-board-hide" value="hide" checked>
+        Remove from the leaderboard</label>
+      <label class="inline"><input type="radio" name="board" id="f-board-keep" value="keep">
+        Leave them on the leaderboard</label>
+    </fieldset>
+    <menu>
+      <button type="submit" value="cancel" formnovalidate id="f-delete-cancel">Cancel</button>
+      <button type="submit" value="save" id="f-delete-save" class="danger">Delete</button>
+    </menu>
+  </form>
+</dialog>
+<dialog id="stats-dialog">
+  <form method="dialog" id="stats-form">
+    <h2 id="stats-dialog-title">Edit standing</h2>
+    <p class="hint">Sets the number the leaderboard ranks on. The reviewer's own count keeps
+    running underneath, so clearing this restores their real total rather than an old one.</p>
+    <label>Cases reviewed <span class="hint" id="stats-real"></span>
+      <input id="f-stats-total" type="number" min="0" step="1" inputmode="numeric" autocomplete="off">
+    </label>
+    <menu>
+      <button type="submit" value="cancel" formnovalidate id="f-stats-cancel">Cancel</button>
+      <button type="submit" value="clear" id="f-stats-clear">Clear override</button>
+      <button type="submit" value="save" id="f-stats-save" class="primary">Save</button>
+    </menu>
+  </form>
+</dialog>
 <dialog id="bulk-dialog">
   <form method="dialog" id="bulk-form">
     <h2>Bulk add</h2>
