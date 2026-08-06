@@ -109,6 +109,123 @@ function flagCell(on) {
   return td;
 }
 
+/* ---- workgroups ----------------------------------------------
+   The group list is needed by three surfaces at once (the per-row
+   dropdown, the user dialog, the bulk dialog), so it is fetched once
+   and cached here rather than per-render. loadUsers() would otherwise
+   issue one groups request per page of the table. */
+let groups = [];
+
+async function refreshGroups() {
+  const data = await api('/admin/workgroups');
+  groups = data.workgroups || [];
+  return groups;
+}
+
+const defaultGroup = () => groups.find((g) => g.is_default) || null;
+
+// Fills a <select> with the cached groups and selects `selectedId`.
+function fillGroupSelect(sel, selectedId) {
+  clearChildren(sel);
+  const fallback = defaultGroup();
+  const target = selectedId || (fallback && fallback.id);
+  for (const g of groups) {
+    const opt = document.createElement('option');
+    opt.value = String(g.id);
+    opt.textContent = g.name;
+    if (String(g.id) === String(target)) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadGroups() {
+  const tbody = $('#group-table tbody');
+  try {
+    await refreshGroups();
+  } catch (err) {
+    clearChildren(tbody);
+    stateRow(tbody, 3, 'Could not load', 'The group list is unavailable, not empty.');
+    handleError(err, 'Loading workgroups', () => loadGroups());
+    return;
+  }
+  clearChildren(tbody);
+
+  if (!groups.length) {
+    stateRow(tbody, 3, 'No groups', 'Add the first workgroup.');
+    return;
+  }
+
+  for (const g of groups) {
+    const tr = document.createElement('tr');
+
+    const tdName = document.createElement('td');
+    tdName.textContent = g.name;
+    if (g.is_default) {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = 'default';
+      tdName.appendChild(document.createTextNode(' '));
+      tdName.appendChild(tag);
+    }
+
+    const tdCount = document.createElement('td');
+    tdCount.textContent = String(g.members);
+
+    const tdActions = document.createElement('td');
+    tdActions.className = 'acts';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.textContent = 'Rename';
+    renameBtn.setAttribute('aria-label', 'Rename ' + g.name);
+    renameBtn.onclick = async () => {
+      const name = prompt('New name for ' + g.name, g.name);
+      if (name === null || !name.trim() || name.trim() === g.name) return;
+      try {
+        await api('/admin/workgroups', {
+          method: 'POST', body: JSON.stringify({ id: g.id, name: name.trim() })
+        });
+        loadGroups();
+        loadUsers();
+      } catch (err) {
+        handleError(err, 'Renaming ' + g.name);
+      }
+    };
+    tdActions.appendChild(renameBtn);
+
+    // The default group has no delete button because it is the
+    // destination every other group's members are moved to. The API
+    // refuses it too; this only spares you the round trip.
+    if (!g.is_default) {
+      const fallback = defaultGroup();
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger';
+      delBtn.textContent = 'Delete';
+      delBtn.setAttribute('aria-label', 'Delete ' + g.name);
+      delBtn.onclick = async () => {
+        const where = fallback ? fallback.name : 'the default group';
+        const msg = g.members
+          ? `Delete ${g.name}? Its ${g.members} member${g.members === 1 ? ' moves' : 's move'} to ${where}. Nobody is removed.`
+          : `Delete ${g.name}? It has no members.`;
+        if (!confirm(msg)) return;
+        try {
+          await api('/admin/workgroups/' + encodeURIComponent(g.id), { method: 'DELETE' });
+          loadGroups();
+          loadUsers();
+        } catch (err) {
+          handleError(err, 'Deleting ' + g.name);
+        }
+      };
+      tdActions.appendChild(document.createTextNode(' '));
+      tdActions.appendChild(delBtn);
+    }
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdCount);
+    tr.appendChild(tdActions);
+    tbody.appendChild(tr);
+  }
+}
+
 async function loadUsers() {
   const q = encodeURIComponent($('#user-search').value.trim());
   const tbody = $('#user-table tbody');
@@ -117,14 +234,14 @@ async function loadUsers() {
     data = await api(`/admin/users?q=${q}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   } catch (err) {
     clearChildren(tbody);
-    stateRow(tbody, 6, 'Could not load', 'The list is unavailable, not empty.');
+    stateRow(tbody, 7, 'Could not load', 'The list is unavailable, not empty.');
     handleError(err, 'Loading users', () => loadUsers());
     return;
   }
   clearChildren(tbody);
 
   if (!data.users.length) {
-    stateRow(tbody, 6, q ? 'No match' : 'No users yet',
+    stateRow(tbody, 7, q ? 'No match' : 'No users yet',
       q ? 'No username matches that search.' : 'Add the first user to the allow-list.');
   }
 
@@ -137,6 +254,35 @@ async function loadUsers() {
 
     const tdAccess = document.createElement('td');
     tdAccess.appendChild(pill(u.authorized, 'Active', 'Revoked'));
+
+    // Assigning a group writes immediately — no dialog, no Save. On
+    // failure the select is put back to where it was, so the row never
+    // shows a group the server did not accept.
+    const tdGroup = document.createElement('td');
+    const sel = document.createElement('select');
+    sel.className = 'group-select';
+    sel.setAttribute('aria-label', 'Workgroup for ' + u.username);
+    fillGroupSelect(sel, u.workgroup_id);
+    let lastGroup = sel.value;
+    sel.onchange = async () => {
+      const chosen = sel.value;
+      sel.disabled = true;
+      try {
+        await api('/admin/users', {
+          method: 'POST',
+          body: JSON.stringify({ username: u.username, workgroup_id: Number(chosen) })
+        });
+        lastGroup = chosen;
+        u.workgroup_id = Number(chosen);
+        loadGroups().catch(() => {});   // member counts moved
+      } catch (err) {
+        sel.value = lastGroup;
+        handleError(err, 'Moving ' + u.username);
+      } finally {
+        sel.disabled = false;
+      }
+    };
+    tdGroup.appendChild(sel);
 
     const tdRainbow = flagCell(u.rainbow);
     const tdThemes = flagCell(u.themes);
@@ -170,6 +316,7 @@ async function loadUsers() {
 
     tr.appendChild(tdUser);
     tr.appendChild(tdAccess);
+    tr.appendChild(tdGroup);
     tr.appendChild(tdRainbow);
     tr.appendChild(tdThemes);
     tr.appendChild(tdNote);
@@ -187,6 +334,7 @@ function openUserDialog(user) {
   $('#user-dialog-title').textContent = user ? 'Edit ' + user.username : 'Add user';
   $('#f-username').value = user ? user.username : '';
   $('#f-username').readOnly = !!user;
+  fillGroupSelect($('#f-workgroup'), user ? user.workgroup_id : null);
   $('#f-authorized').checked = user ? !!user.authorized : true;
   $('#f-rainbow').checked = user ? !!user.rainbow : false;
   $('#f-themes').checked = user ? !!user.themes : false;
@@ -340,6 +488,7 @@ function selectTab(btn) {
     b.tabIndex = on ? 0 : -1;
   });
   document.querySelectorAll('.tab').forEach((s) => { s.hidden = s.id !== 'tab-' + btn.dataset.tab; });
+  if (btn.dataset.tab === 'groups') loadGroups();
   if (btn.dataset.tab === 'themes') loadThemes().catch((err) => handleError(err, 'Loading themes', () => loadThemes().catch(() => {})));
   if (btn.dataset.tab === 'audit') loadAudit().catch((err) => handleError(err, 'Loading the audit log'));
 }
@@ -367,8 +516,25 @@ $('#user-search').oninput = () => {
 $('#prev-page').onclick = () => { page = Math.max(0, page - 1); loadUsers(); };
 $('#next-page').onclick = () => { page++; loadUsers(); };
 $('#add-user-btn').onclick = () => openUserDialog(null);
+
+$('#add-group-btn').onclick = async () => {
+  const input = $('#group-name');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  try {
+    await api('/admin/workgroups', { method: 'POST', body: JSON.stringify({ name }) });
+    input.value = '';
+    loadGroups();
+  } catch (err) {
+    handleError(err, 'Adding ' + name);
+  }
+};
+$('#group-name').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('#add-group-btn').click(); }
+});
 $('#bulk-btn').onclick = () => {
   $('#f-bulk').value = '';
+  fillGroupSelect($('#f-bulk-workgroup'), null);
   // See the comment in openUserDialog: Escape does not reset returnValue.
   $('#bulk-dialog').returnValue = '';
   $('#bulk-dialog').showModal();
@@ -384,10 +550,12 @@ $('#user-dialog').addEventListener('close', async () => {
         authorized: $('#f-authorized').checked,
         rainbow: $('#f-rainbow').checked,
         themes: $('#f-themes').checked,
-        note: $('#f-note').value
+        note: $('#f-note').value,
+        workgroup_id: Number($('#f-workgroup').value)
       })
     });
     loadUsers();
+    loadGroups().catch(() => {});
     loadStats();
   } catch (err) {
     handleError(err, 'Saving the user');
@@ -399,9 +567,13 @@ $('#bulk-dialog').addEventListener('close', async () => {
   const usernames = $('#f-bulk').value.split(/[\s,;]+/).filter(Boolean);
   if (!usernames.length) return;
   try {
-    const r = await api('/admin/users/bulk', { method: 'POST', body: JSON.stringify({ usernames }) });
+    const groupId = Number($('#f-bulk-workgroup').value);
+    const groupName = ($('#f-bulk-workgroup').selectedOptions[0] || {}).textContent || '';
+    const r = await api('/admin/users/bulk', {
+      method: 'POST', body: JSON.stringify({ usernames, workgroup_id: groupId })
+    });
     alert(
-      `Submitted ${usernames.length}.\n` +
+      `Submitted ${usernames.length} into ${groupName}.\n` +
       `Added: ${r.added}\n` +
       `Already existing: ${r.existing}\n` +
       `Duplicates in list: ${r.duplicates}\n` +
@@ -410,6 +582,7 @@ $('#bulk-dialog').addEventListener('close', async () => {
     $('#f-bulk').value = '';
     page = 0;
     loadUsers();
+    loadGroups().catch(() => {});
     loadStats();
   } catch (err) {
     handleError(err, 'Bulk add');
@@ -433,6 +606,10 @@ async function start() {
   $('#login-view').hidden = true;
   $('#app-view').hidden = false;
   hideBanner();
+  // Groups first, and awaited: every row of the user table renders a
+  // <select> from this list, so loading it in parallel would race and
+  // paint the first page with empty dropdowns.
+  await refreshGroups();
   await Promise.all([loadUsers(), loadStats()]);
 }
 

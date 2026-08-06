@@ -183,6 +183,30 @@ td.acts button{padding:7px 11px;font-size:10px}
 .flag{font:600 12px/1 var(--mono);color:var(--cyan-t)}
 .flag.no{color:rgba(42,38,34,.42)}
 
+/* The in-row group picker writes on change, so it is deliberately quieter
+   than a form control that waits for a Save: lighter border, tighter
+   padding, and it only takes the full input treatment on focus. A row of
+   these at full input weight turned the table into a wall of boxes. */
+select.group-select{
+  font:400 12px/1.3 var(--mono);padding:5px 8px;max-width:24ch;
+  border-color:rgba(42,38,34,.22);background:transparent;
+}
+select.group-select:hover:not(:disabled){border-color:rgba(42,38,34,.5);background:var(--paper)}
+select.group-select:disabled{opacity:.45;cursor:progress}
+
+/* Marks the one group that cannot be deleted. Never colour alone: the
+   word "default" is the signal, the pigment only draws the eye. */
+.tag{
+  position:relative;display:inline-block;padding:2px 7px;margin-left:4px;
+  font:600 9px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.09em;
+  color:var(--ink);isolation:isolate;
+}
+.tag::before{
+  content:"";position:absolute;inset:-1px -3px;z-index:-1;
+  background:var(--amber);opacity:.55;
+  mix-blend-mode:multiply;filter:url(#wet);
+}
+
 #page-info{font:400 11px/1 var(--mono);color:var(--ink-soft)}
 
 .state-row td{text-align:center;padding:34px 13px;color:var(--ink-soft)}

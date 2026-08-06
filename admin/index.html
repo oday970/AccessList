@@ -68,6 +68,7 @@
 
   <nav id="tabs" role="tablist" aria-label="Admin sections">
     <button role="tab" id="tab-btn-users"  aria-selected="true"  aria-controls="tab-users"  data-tab="users">Users</button>
+    <button role="tab" id="tab-btn-groups" aria-selected="false" aria-controls="tab-groups" data-tab="groups" tabindex="-1">Groups</button>
     <button role="tab" id="tab-btn-themes" aria-selected="false" aria-controls="tab-themes" data-tab="themes" tabindex="-1">Themes</button>
     <button role="tab" id="tab-btn-audit"  aria-selected="false" aria-controls="tab-audit"  data-tab="audit"  tabindex="-1">Audit</button>
   </nav>
@@ -87,6 +88,7 @@
         <thead><tr>
           <th scope="col">Username</th>
           <th scope="col">Access</th>
+          <th scope="col">Workgroup</th>
           <th scope="col">Rainbow</th>
           <th scope="col">Themes</th>
           <th scope="col">Note</th>
@@ -99,6 +101,27 @@
       <button id="prev-page">Previous</button>
       <span id="page-info" aria-live="polite"></span>
       <button id="next-page">Next</button>
+    </div>
+  </section>
+
+  <section id="tab-groups" class="tab" role="tabpanel" aria-labelledby="tab-btn-groups" tabindex="0" hidden>
+    <h2>Workgroups</h2>
+    <p class="hint-strong">Deleting a group moves its members to the default group; it never removes anyone. The default group cannot be deleted, because it is where those members go.</p>
+    <div class="toolbar">
+      <label for="group-name" class="sr-only">New group name</label>
+      <input id="group-name" type="text" placeholder="e.g. GDP-ENT-CATC-SHIFT1-ES-AMM" maxlength="120">
+      <button id="add-group-btn" class="primary">Add group</button>
+    </div>
+    <div class="table-wrap">
+      <table id="group-table">
+        <caption>Workgroups — the leaderboard is scoped to these</caption>
+        <thead><tr>
+          <th scope="col">Name</th>
+          <th scope="col">Members</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </section>
 
@@ -139,6 +162,9 @@
     <label>Username
       <input id="f-username" required maxlength="32" autocomplete="off">
     </label>
+    <label>Workgroup
+      <select id="f-workgroup"></select>
+    </label>
     <label class="inline"><input id="f-authorized" type="checkbox" checked> Authorized — can use the assistant</label>
     <label class="inline"><input id="f-rainbow" type="checkbox"> Rainbow name — animated name on the leaderboard</label>
     <label class="inline"><input id="f-themes" type="checkbox"> Theme picker — may change the panel theme</label>
@@ -155,7 +181,10 @@
 <dialog id="bulk-dialog">
   <form method="dialog" id="bulk-form">
     <h2>Bulk add</h2>
-    <p class="hint">One username per line. Existing users are left untouched.</p>
+    <p class="hint">One username per line. Existing users are left untouched — including their workgroup.</p>
+    <label>Workgroup for everyone added
+      <select id="f-bulk-workgroup"></select>
+    </label>
     <label for="f-bulk" class="sr-only">Usernames, one per line</label>
     <textarea id="f-bulk" rows="12"></textarea>
     <menu>
