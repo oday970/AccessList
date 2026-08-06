@@ -187,8 +187,15 @@ td.acts button{padding:7px 11px;font-size:10px}
    than a form control that waits for a Save: lighter border, tighter
    padding, and it only takes the full input treatment on focus. A row of
    these at full input weight turned the table into a wall of boxes. */
+/* Wide enough for the real names, not the short ones. The group names in
+   use run to 27 characters (GDP-ENT-LANSW-SHIFT2-ES-AMM), and a picker
+   that truncates the part which distinguishes one group from another is
+   worse than no picker: every row read "GDP-ENT-CATC-SHIFT2-E...". The
+   floor fits that plus the dropdown arrow; longer names still grow the
+   control rather than being cut. */
 select.group-select{
-  font:400 12px/1.3 var(--mono);padding:5px 8px;max-width:24ch;
+  font:400 12px/1.3 var(--mono);padding:5px 8px;
+  min-width:30ch;max-width:100%;
   border-color:rgba(42,38,34,.22);background:transparent;
 }
 select.group-select:hover:not(:disabled){border-color:rgba(42,38,34,.5);background:var(--paper)}

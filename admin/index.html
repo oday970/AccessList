@@ -78,6 +78,9 @@
     <div class="toolbar">
       <label for="user-search" class="sr-only">Search username</label>
       <input id="user-search" type="search" placeholder="Search username…">
+      <label for="user-group-filter" class="sr-only">Filter by workgroup</label>
+      <select id="user-group-filter"></select>
+      <button id="refresh-users-btn">Refresh</button>
       <span class="spacer"></span>
       <button id="add-user-btn" class="primary">Add user</button>
       <button id="bulk-btn">Bulk add</button>
@@ -141,6 +144,12 @@
   <section id="tab-audit" class="tab" role="tabpanel" aria-labelledby="tab-btn-audit" tabindex="0" hidden>
     <h2>Audit</h2>
     <p class="hint-strong">Refused writes. This table should stay near-empty; entries mean malformed or forged requests.</p>
+    <div class="toolbar">
+      <button id="refresh-audit-btn">Refresh</button>
+      <button id="export-audit-btn">Export CSV</button>
+      <span class="spacer"></span>
+      <button id="clear-audit-btn" class="danger">Clear log</button>
+    </div>
     <div class="table-wrap">
       <table id="audit-table">
         <caption>Refused writes, most recent first</caption>

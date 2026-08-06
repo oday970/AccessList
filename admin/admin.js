@@ -119,6 +119,7 @@ let groups = [];
 async function refreshGroups() {
   const data = await api('/admin/workgroups');
   groups = data.workgroups || [];
+  fillGroupFilter();
   return groups;
 }
 
@@ -136,6 +137,27 @@ function fillGroupSelect(sel, selectedId) {
     if (String(g.id) === String(target)) opt.selected = true;
     sel.appendChild(opt);
   }
+}
+
+// The filter carries an extra "All workgroups" option and must survive a
+// refresh: rebuilding it after a rename or a delete would otherwise reset
+// the view to All underneath whoever was looking at one group. A filter
+// pointing at a group that has since been deleted falls back to All.
+function fillGroupFilter() {
+  const sel = $('#user-group-filter');
+  const keep = sel.value;
+  clearChildren(sel);
+  const all = document.createElement('option');
+  all.value = '0';
+  all.textContent = 'All workgroups';
+  sel.appendChild(all);
+  for (const g of groups) {
+    const opt = document.createElement('option');
+    opt.value = String(g.id);
+    opt.textContent = g.name + ' (' + g.members + ')';
+    sel.appendChild(opt);
+  }
+  sel.value = [...sel.options].some((o) => o.value === keep) ? keep : '0';
 }
 
 async function loadGroups() {
@@ -228,10 +250,13 @@ async function loadGroups() {
 
 async function loadUsers() {
   const q = encodeURIComponent($('#user-search').value.trim());
+  // '' (the "All workgroups" option) sends 0, which the server reads as
+  // "every group" rather than as a group that happens to have id 0.
+  const wg = encodeURIComponent($('#user-group-filter').value || '0');
   const tbody = $('#user-table tbody');
   let data;
   try {
-    data = await api(`/admin/users?q=${q}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
+    data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   } catch (err) {
     clearChildren(tbody);
     stateRow(tbody, 7, 'Could not load', 'The list is unavailable, not empty.');
@@ -241,8 +266,15 @@ async function loadUsers() {
   clearChildren(tbody);
 
   if (!data.users.length) {
-    stateRow(tbody, 7, q ? 'No match' : 'No users yet',
-      q ? 'No username matches that search.' : 'Add the first user to the allow-list.');
+    // A filtered empty result is not the same as an empty allow-list, and
+    // saying "No users yet" while a filter is on reads as data loss.
+    const filtered = ($('#user-group-filter').value || '0') !== '0';
+    if (q || filtered) {
+      const by = [q ? 'that search' : null, filtered ? 'that workgroup' : null].filter(Boolean).join(' and ');
+      stateRow(tbody, 7, 'No match', 'Nobody matches ' + by + '.');
+    } else {
+      stateRow(tbody, 7, 'No users yet', 'Add the first user to the allow-list.');
+    }
   }
 
   for (const u of data.users) {
@@ -451,6 +483,58 @@ async function loadAudit() {
   }
 }
 
+/* ---- audit export ---------------------------------------------
+   Built from a fresh fetch rather than by scraping the rendered table,
+   so the file matches the server rather than whatever the tab happened
+   to be showing. Deliberately fetches a much higher limit than the
+   view does: exporting only the 200 rows on screen would quietly
+   produce a partial file with no sign that anything was missing. */
+function toCsvCell(v) {
+  const s = v === null || v === undefined ? '' : String(v);
+  // A leading =, +, - or @ makes Excel treat the cell as a formula. The
+  // detail column carries attacker-supplied text, so prefix those with a
+  // quote rather than handing someone a spreadsheet that executes it.
+  const safe = /^[=+\-@]/.test(s) ? "'" + s : s;
+  return '"' + safe.replace(/"/g, '""') + '"';
+}
+
+async function exportAudit() {
+  const btn = $('#export-audit-btn');
+  btn.disabled = true;
+  try {
+    const data = await api('/admin/rejects?limit=500');
+    const rows = data.rejects || [];
+    if (!rows.length) { alert('The audit log is empty; nothing to export.'); return; }
+
+    const csv = [['when', 'timestamp_ms', 'username', 'reason', 'detail'].join(',')]
+      .concat(rows.map((r) => [
+        toCsvCell(new Date(r.ts).toISOString()),
+        toCsvCell(r.ts),
+        toCsvCell(r.username),
+        toCsvCell(r.reason),
+        toCsvCell(r.detail)
+      ].join(',')))
+      .join('\r\n');
+
+    // BOM so Excel reads it as UTF-8 rather than the system codepage.
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cra-audit-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoked on a later turn of the event loop: revoking synchronously
+    // races the download in some browsers and yields an empty file.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (err) {
+    handleError(err, 'Exporting the audit log');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function loadStats() {
   const s = await api('/admin/stats');
   const age = s.snapshotAgeMs === null ? 'never built' : Math.round(s.snapshotAgeMs / 60000) + ' min ago';
@@ -515,6 +599,43 @@ $('#user-search').oninput = () => {
 };
 $('#prev-page').onclick = () => { page = Math.max(0, page - 1); loadUsers(); };
 $('#next-page').onclick = () => { page++; loadUsers(); };
+
+// Changing the filter resets to page 0: staying on page 3 of an unfiltered
+// list after narrowing to a five-person group shows an empty table.
+$('#user-group-filter').onchange = () => { page = 0; loadUsers(); };
+
+$('#refresh-users-btn').onclick = async () => {
+  const btn = $('#refresh-users-btn');
+  btn.disabled = true;
+  try {
+    // Groups first and awaited, for the same reason start() does it: the
+    // rows build their dropdowns from that list.
+    await refreshGroups();
+    await Promise.all([loadUsers(), loadStats()]);
+  } catch (err) {
+    handleError(err, 'Refreshing', () => $('#refresh-users-btn').click());
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+$('#refresh-audit-btn').onclick = () => loadAudit().catch((err) => handleError(err, 'Refreshing the audit log'));
+$('#export-audit-btn').onclick = () => exportAudit();
+
+$('#clear-audit-btn').onclick = async () => {
+  if (!confirm('Clear the audit log? Export it first if you want a copy — this cannot be undone. The clearing itself is recorded.')) return;
+  const btn = $('#clear-audit-btn');
+  btn.disabled = true;
+  try {
+    const r = await api('/admin/rejects', { method: 'DELETE' });
+    loadAudit();
+    alert(r.cleared ? `Cleared ${r.cleared} ${r.cleared === 1 ? 'entry' : 'entries'}.` : 'The log was already empty.');
+  } catch (err) {
+    handleError(err, 'Clearing the audit log');
+  } finally {
+    btn.disabled = false;
+  }
+};
 $('#add-user-btn').onclick = () => openUserDialog(null);
 
 $('#add-group-btn').onclick = async () => {
