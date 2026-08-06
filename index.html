@@ -373,6 +373,26 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 .steps p{margin:0;font-size:.92rem;color:var(--ink-soft);line-height:1.55}
 .steps a{color:var(--cyan-t);text-underline-offset:3px}
 
+/* ---- download: two tools, one place ------------------------
+   Same construction as .steps — a 1px hairline grid over the rule
+   colour, cells painted back in --paper — so the two sections read
+   as one system rather than two. Cards stretch to equal height so
+   the buttons sit on a shared baseline whatever the copy length. */
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1px;background:rgba(42,38,34,.2);border:var(--rule)}
+.dl-card{background:var(--paper);padding:clamp(24px,3vw,32px);display:flex;flex-direction:column}
+.dl-card h3{font-size:1.42rem;line-height:1.1;margin:0}
+.dl-ver{display:block;font:400 10.5px/1.5 var(--mono);text-transform:uppercase;letter-spacing:.13em;color:var(--ink-soft);margin-top:9px}
+.dl-card p{margin:16px 0 0;font-size:.95rem;color:var(--ink-soft);line-height:1.55}
+/* The access rule is the one thing that differs between the two
+   tools, so it gets its own line rather than being buried in prose. */
+.dl-gate{
+  display:flex;align-items:flex-start;gap:9px;margin:20px 0 0;padding-top:16px;
+  border-top:1px solid rgba(42,38,34,.22);font-size:.9rem;line-height:1.45;
+}
+.dl-gate svg{flex:none;margin-top:2px}
+.dl-gate b{font-weight:700;color:var(--ink)}
+.dl-card .acts{margin-top:auto;padding-top:24px}
+
 /* ---- sla --------------------------------------------------- */
 .sla{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(26px,4vw,52px);align-items:center}
 @media (max-width:860px){.sla{grid-template-columns:1fr}}
@@ -445,6 +465,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
       <a href="#does">What it does</a>
       <a href="#access">Access</a>
       <a href="#install">Install</a>
+      <a href="#download">Download</a>
     </nav>
   </div>
 </header>
@@ -758,7 +779,8 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
           <span class="n">1</span>
           <h3>Get on the allow-list</h3>
           <p>Message <a href="mailto:odemar@cisco.com">odemar@cisco.com</a> with your username.
-          Every step below depends on this one.</p>
+          The assistant depends on this; the SLA guard does not, so skip to step 2 if the
+          guard is all you want.</p>
         </li>
         <li>
           <span class="n">2</span>
@@ -767,9 +789,11 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
         </li>
         <li>
           <span class="n">3</span>
-          <h3>Add the loader</h3>
-          <p><a href="/loader.user.js">Open loader.user.js</a> and Tampermonkey will offer a one-click
-          install. The loader is version 0.29.0; it keeps the assistant itself up to date from there.</p>
+          <h3>Add your tool</h3>
+          <p>Both downloads are at the <a href="#download">foot of this page</a> — take the assistant,
+          the guard, or both. Tampermonkey offers a one-click install on each, and each arrives as a
+          small loader that keeps the real script current, so you install once and never chase a
+          version.</p>
         </li>
         <li>
           <span class="n">4</span>
@@ -790,13 +814,8 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
         straight onto the case page. Standalone, no allow-list, install it on its own.</p>
         <p class="lede">Like the assistant, it installs as a small loader that keeps itself current,
         so you install once and never chase a version again. Currently
-        <span class="sla-version">1.6.1</span>.</p>
-        <div class="acts">
-          <a class="btn btn--ghost" href="/sla.user.js">
-            Install SLA Color Guard
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
-          </a>
-        </div>
+        <span class="sla-version">1.6.1</span>, and
+        <a href="#download" style="color:var(--cyan-t);text-underline-offset:3px">downloadable just below</a>.</p>
       </div>
       <div class="sheet">
         <span class="reg"><i></i></span><span class="reg"><i></i></span>
@@ -812,6 +831,68 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
       </div>
     </div>
   </section>
+  <!-- ============ DOWNLOAD ============ -->
+  <!-- Both tools install from here and nowhere else, so there is one
+       version number per tool to keep true instead of two. The numbers
+       shown are the APP versions, not the loaders' — .cra-version and
+       .sla-version are filled live from api.casereview.cc by the sync
+       at the foot of this file, which is why they carry no hard-coded
+       fallback worth trusting. The loader version is deliberately not
+       surfaced here: it is an implementation detail, and what a reader
+       actually runs is the app the loader fetches. -->
+  <section id="download">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Two tools, one place.</h2>
+        <p class="lede">They are separate scripts with separate rules. Take one, or both —
+        neither needs the other to work.</p>
+      </div>
+      <div class="dl">
+
+        <div class="dl-card">
+          <h3>Case Review Assistant</h3>
+          <span class="dl-ver">Version <span class="cra-version">0.31.0</span> · updates itself</span>
+          <p>Opens inside the case page, scores the case against the five review criteria before
+          you have read it, and fills out the review template.</p>
+          <p class="dl-gate">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" focusable="false">
+              <rect x="3" y="7" width="10" height="7"/><path d="M5.5 7V4.8a2.5 2.5 0 0 1 5 0V7"/>
+            </svg>
+            <span><b>Allow-list required.</b> Install it before you are approved and it will load,
+            then do nothing at all.</span>
+          </p>
+          <div class="acts">
+            <a class="btn" href="/loader.user.js">
+              Install the assistant
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="dl-card">
+          <h3>MTTF / SLA Color Guard</h3>
+          <span class="dl-ver">Version <span class="sla-version">1.6.1</span> · updates itself</span>
+          <p>Colours the case status dropdown by how much SLA time each option actually costs you,
+          and draws a mean-time-to-failure histogram beside it.</p>
+          <p class="dl-gate">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" aria-hidden="true" focusable="false">
+              <path d="M3 8.4 6.4 12 13 4.6"/>
+            </svg>
+            <span><b>Open to everyone.</b> No approval, no allow-list, no account. Install it and
+            it works on the next case you open.</span>
+          </p>
+          <div class="acts">
+            <a class="btn btn--ghost" href="/sla.user.js">
+              Install the guard
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <footer>
@@ -902,7 +983,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
         });
       });
     }, { rootMargin: "-45% 0px -50% 0px" });
-    ["score","inside","does","access","install"].forEach(function(id){
+    ["score","inside","does","access","install","download"].forEach(function(id){
       var el = document.getElementById(id);
       if (el) spy.observe(el);
     });
