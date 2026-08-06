@@ -245,6 +245,18 @@
     </menu>
   </form>
 </dialog>
+<dialog id="ach-dialog">
+  <form method="dialog" id="ach-form">
+    <h2 id="ach-dialog-title">Achievements</h2>
+    <p class="hint">Ticked means unlocked. Saving replaces their whole set, so unticking one
+    revokes it. Unlock dates are kept for anything left ticked.</p>
+    <div id="ach-list" class="ach-list"></div>
+    <menu>
+      <button type="submit" value="cancel" formnovalidate id="f-ach-cancel">Cancel</button>
+      <button type="submit" value="save" id="f-ach-save" class="primary">Save</button>
+    </menu>
+  </form>
+</dialog>
 <dialog id="bulk-dialog">
   <form method="dialog" id="bulk-form">
     <h2>Bulk add</h2>

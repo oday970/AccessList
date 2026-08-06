@@ -402,6 +402,65 @@ function openStatsDialog(row) {
   $('#stats-dialog').showModal();
 }
 
+/* ---- achievements ------------------------------------------------
+   The catalog comes from the API rather than being restated here: the
+   worker mirrors the client's list and has a test that fails if the two
+   drift, so there is exactly one place a new achievement has to be
+   registered for the panel to offer it. Fetched once and cached. */
+let achCatalog = null;
+let pendingAch = null;
+
+async function loadAchCatalog() {
+  if (achCatalog) return achCatalog;
+  const data = await api('/admin/achievements');
+  achCatalog = data.achievements || [];
+  return achCatalog;
+}
+
+async function openAchDialog(row) {
+  pendingAch = row;
+  $('#ach-dialog-title').textContent = 'Achievements — ' + row.username;
+  const list = $('#ach-list');
+  clearChildren(list);
+
+  let catalog, current;
+  try {
+    [catalog, current] = await Promise.all([
+      loadAchCatalog(),
+      api('/admin/users/' + encodeURIComponent(row.username) + '/achievements')
+    ]);
+  } catch (err) {
+    pendingAch = null;
+    handleError(err, 'Loading achievements for ' + row.username);
+    return;
+  }
+
+  const unlocked = current.unlocked || {};
+  for (const a of catalog) {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = a.id;
+    cb.checked = Object.prototype.hasOwnProperty.call(unlocked, a.id);
+    const icon = document.createElement('span');
+    icon.className = 'ach-icon';
+    icon.textContent = a.icon || '';
+    const text = document.createElement('span');
+    // The unlock date is the thing an admin needs to see to judge whether
+    // a tick is real or something they granted by hand a minute ago.
+    text.textContent = a.name + (cb.checked && unlocked[a.id]
+      ? ' · ' + new Date(unlocked[a.id]).toLocaleDateString()
+      : '');
+    label.appendChild(cb);
+    label.appendChild(icon);
+    label.appendChild(text);
+    list.appendChild(label);
+  }
+
+  $('#ach-dialog').returnValue = '';
+  $('#ach-dialog').showModal();
+}
+
 /* ---- the admin's view of the board ------------------------------ */
 function fillBoardFilter() {
   const sel = $('#board-group-filter');
@@ -474,7 +533,13 @@ async function loadBoard() {
     editBtn.textContent = 'Edit';
     editBtn.setAttribute('aria-label', 'Edit standing for ' + r.username);
     editBtn.onclick = () => openStatsDialog(r);
+    const achBtn = document.createElement('button');
+    achBtn.textContent = 'Achievements';
+    achBtn.setAttribute('aria-label', 'Edit achievements for ' + r.username);
+    achBtn.onclick = () => openAchDialog(r);
     tdActions.appendChild(editBtn);
+    tdActions.appendChild(document.createTextNode(' '));
+    tdActions.appendChild(achBtn);
 
     tr.appendChild(tdRank);
     tr.appendChild(tdUser);
@@ -787,6 +852,21 @@ $('#stats-dialog').addEventListener('close', async () => {
     loadBoard();
   } catch (err) {
     handleError(err, 'Saving the standing for ' + row.username);
+  }
+});
+
+$('#ach-dialog').addEventListener('close', async () => {
+  const dlg = $('#ach-dialog');
+  const row = pendingAch;
+  pendingAch = null;
+  if (dlg.returnValue !== 'save' || !row) return;
+  const unlocked = [...$('#ach-list').querySelectorAll('input:checked')].map((cb) => cb.value);
+  try {
+    await api('/admin/users/' + encodeURIComponent(row.username) + '/achievements',
+      { method: 'POST', body: JSON.stringify({ unlocked }) });
+    loadBoard();
+  } catch (err) {
+    handleError(err, 'Saving achievements for ' + row.username);
   }
 });
 
