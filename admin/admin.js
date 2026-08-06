@@ -35,6 +35,25 @@ function signOut() {
   $('#login-view').hidden = false;
 }
 
+/* A failed request is not the same thing as an expired session. Only a 401
+   signs the admin out; everything else raises this banner and leaves the
+   panel where it was, so a network blip stops looking like a logout. */
+let bannerRetry = null;
+function showBanner(message, retryFn) {
+  $('#banner-text').textContent = message;
+  bannerRetry = retryFn || null;
+  $('#banner-retry').hidden = !retryFn;
+  $('#banner').hidden = false;
+}
+function hideBanner() { $('#banner').hidden = true; bannerRetry = null; }
+$('#banner-dismiss').onclick = hideBanner;
+$('#banner-retry').onclick = () => { const fn = bannerRetry; hideBanner(); if (fn) fn(); };
+
+function handleError(err, context, retryFn) {
+  if (err && err.message === 'unauthorized') return;   // signOut already ran
+  showBanner(context + ' failed: ' + ((err && err.message) || 'unknown error'), retryFn);
+}
+
 async function signIn(password) {
   const resp = await fetch(API + '/admin/login', {
     method: 'POST',
@@ -59,11 +78,55 @@ async function signIn(password) {
 }
 
 /* ---- users ---- */
+function stateRow(tbody, colspan, big, small) {
+  const tr = document.createElement('tr');
+  tr.className = 'state-row';
+  const td = document.createElement('td');
+  td.colSpan = colspan;
+  const b = document.createElement('b');
+  b.textContent = big;
+  const s = document.createElement('span');
+  s.textContent = small;
+  td.appendChild(b);
+  td.appendChild(s);
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+}
+
+function pill(on, onText, offText) {
+  const el = document.createElement('span');
+  el.className = 'pill ' + (on ? 'on' : 'off');
+  el.textContent = on ? onText : offText;
+  return el;
+}
+
+function flagCell(on) {
+  const td = document.createElement('td');
+  const s = document.createElement('span');
+  s.className = 'flag' + (on ? '' : ' no');
+  s.textContent = on ? 'YES' : '—';
+  td.appendChild(s);
+  return td;
+}
+
 async function loadUsers() {
   const q = encodeURIComponent($('#user-search').value.trim());
-  const data = await api(`/admin/users?q=${q}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   const tbody = $('#user-table tbody');
+  let data;
+  try {
+    data = await api(`/admin/users?q=${q}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
+  } catch (err) {
+    clearChildren(tbody);
+    stateRow(tbody, 6, 'Could not load', 'The list is unavailable, not empty.');
+    handleError(err, 'Loading users', () => loadUsers());
+    return;
+  }
   clearChildren(tbody);
+
+  if (!data.users.length) {
+    stateRow(tbody, 6, q ? 'No match' : 'No users yet',
+      q ? 'No username matches that search.' : 'Add the first user to the allow-list.');
+  }
 
   for (const u of data.users) {
     const tr = document.createElement('tr');
@@ -73,23 +136,24 @@ async function loadUsers() {
     if (!u.authorized) tdUser.className = 'revoked';
 
     const tdAccess = document.createElement('td');
-    tdAccess.textContent = u.authorized ? 'Active' : 'Revoked';
+    tdAccess.appendChild(pill(u.authorized, 'Active', 'Revoked'));
 
-    const tdRainbow = document.createElement('td');
-    tdRainbow.textContent = u.rainbow ? '✓' : '';
-
-    const tdThemes = document.createElement('td');
-    tdThemes.textContent = u.themes ? '✓' : '';
+    const tdRainbow = flagCell(u.rainbow);
+    const tdThemes = flagCell(u.themes);
 
     const tdNote = document.createElement('td');
     tdNote.textContent = u.note || '';
 
     const tdActions = document.createElement('td');
+    tdActions.className = 'acts';
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
+    editBtn.setAttribute('aria-label', 'Edit ' + u.username);
     editBtn.onclick = () => openUserDialog(u);
     const revokeBtn = document.createElement('button');
+    revokeBtn.className = 'danger';
     revokeBtn.textContent = 'Revoke';
+    revokeBtn.setAttribute('aria-label', 'Revoke ' + u.username);
     revokeBtn.onclick = async () => {
       if (!confirm(`Revoke access for ${u.username}? Their leaderboard history is kept.`)) return;
       try {
@@ -97,7 +161,7 @@ async function loadUsers() {
         loadUsers();
         loadStats();
       } catch (err) {
-        if (err.message !== 'unauthorized') alert(err.message || 'Could not revoke user.');
+        handleError(err, 'Revoking ' + u.username);
       }
     };
     tdActions.appendChild(editBtn);
@@ -151,6 +215,7 @@ async function loadThemes() {
       checkbox.checked = !!t.enabled;
 
       const label = document.createElement('span');
+      label.className = 'nm';
       label.textContent = (t.emoji || '') + ' ' + t.label;
 
       const spacer = document.createElement('span');
@@ -174,7 +239,7 @@ async function loadThemes() {
           // Revert the checkbox instead of leaving it in a state the
           // server rejected, and say why.
           e.target.checked = !desired;
-          if (err.message !== 'unauthorized') alert(err.message || 'Could not update theme.');
+          handleError(err, 'Updating ' + t.label);
         }
       };
       radio.onchange = async () => {
@@ -185,7 +250,7 @@ async function loadThemes() {
           // returns 404 if the theme was deleted/renamed concurrently by
           // another admin — prefer the server's own message over the
           // hardcoded guess, falling back only when it has none.
-          if (err.message !== 'unauthorized') alert(err.message || 'Enable the theme before making it the default.');
+          handleError(err, 'Setting ' + t.label + ' as default');
         }
         loadThemes();
       };
@@ -204,9 +269,20 @@ async function loadThemes() {
 
 /* ---- audit + stats ---- */
 async function loadAudit() {
-  const data = await api('/admin/rejects?limit=200');
   const tbody = $('#audit-table tbody');
+  let data;
+  try {
+    data = await api('/admin/rejects?limit=200');
+  } catch (err) {
+    clearChildren(tbody);
+    stateRow(tbody, 4, 'Could not load', 'The audit log is unavailable, not empty.');
+    handleError(err, 'Loading the audit log', () => loadAudit());
+    return;
+  }
   clearChildren(tbody);
+  if (!data.rejects.length) {
+    stateRow(tbody, 4, 'Nothing refused', 'This is the state you want it in.');
+  }
   for (const r of data.rejects) {
     const tr = document.createElement('tr');
 
@@ -242,7 +318,9 @@ $('#login-form').onsubmit = async (e) => {
   try {
     await signIn($('#password').value);
     $('#password').value = '';
-    await start();
+    // start() failing is not a bad password — it raises its own banner
+    // rather than telling the admin their credentials were wrong.
+    start().catch((e2) => handleError(e2, 'Loading the panel', () => start().catch(() => {})));
   } catch (ex) {
     err.textContent = ex.message || 'Invalid password';
     err.hidden = false;
@@ -251,14 +329,35 @@ $('#login-form').onsubmit = async (e) => {
 
 $('#logout').onclick = signOut;
 
-$('#tabs').onclick = (e) => {
-  const btn = e.target.closest('button[data-tab]');
-  if (!btn) return;
-  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b === btn));
+/* A real tablist: aria-selected carries the state the CSS paints, and a
+   roving tabindex means one Tab stop for the strip with arrows inside it. */
+const tabBtns = Array.from(document.querySelectorAll('#tabs button[data-tab]'));
+
+function selectTab(btn) {
+  tabBtns.forEach((b) => {
+    const on = b === btn;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
   document.querySelectorAll('.tab').forEach((s) => { s.hidden = s.id !== 'tab-' + btn.dataset.tab; });
-  if (btn.dataset.tab === 'themes') loadThemes().catch((err) => { if (err.message !== 'unauthorized') alert(err.message); });
-  if (btn.dataset.tab === 'audit') loadAudit().catch((err) => { if (err.message !== 'unauthorized') alert(err.message); });
-};
+  if (btn.dataset.tab === 'themes') loadThemes().catch((err) => handleError(err, 'Loading themes', () => loadThemes().catch(() => {})));
+  if (btn.dataset.tab === 'audit') loadAudit().catch((err) => handleError(err, 'Loading the audit log'));
+}
+
+tabBtns.forEach((btn, i) => {
+  btn.addEventListener('click', () => selectTab(btn));
+  btn.addEventListener('keydown', (e) => {
+    let next = null;
+    if (e.key === 'ArrowRight') next = tabBtns[(i + 1) % tabBtns.length];
+    else if (e.key === 'ArrowLeft') next = tabBtns[(i - 1 + tabBtns.length) % tabBtns.length];
+    else if (e.key === 'Home') next = tabBtns[0];
+    else if (e.key === 'End') next = tabBtns[tabBtns.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    selectTab(next);
+    next.focus();
+  });
+});
 
 let searchTimer = null;
 $('#user-search').oninput = () => {
@@ -291,7 +390,7 @@ $('#user-dialog').addEventListener('close', async () => {
     loadUsers();
     loadStats();
   } catch (err) {
-    if (err.message !== 'unauthorized') alert(err.message || 'Could not save user.');
+    handleError(err, 'Saving the user');
   }
 });
 
@@ -313,7 +412,7 @@ $('#bulk-dialog').addEventListener('close', async () => {
     loadUsers();
     loadStats();
   } catch (err) {
-    if (err.message !== 'unauthorized') alert(err.message || 'Bulk add failed.');
+    handleError(err, 'Bulk add');
   }
 });
 
@@ -325,7 +424,7 @@ document.querySelectorAll('[data-bulk]').forEach((b) => {
     } catch (err) {
       // Bulk-disabling every seasonal theme can zero out all enabled
       // themes, which the server also refuses with 409.
-      if (err.message !== 'unauthorized') alert(err.message || 'Could not update themes.');
+      handleError(err, 'Updating seasonal themes');
     }
   };
 });
@@ -333,7 +432,13 @@ document.querySelectorAll('[data-bulk]').forEach((b) => {
 async function start() {
   $('#login-view').hidden = true;
   $('#app-view').hidden = false;
+  hideBanner();
   await Promise.all([loadUsers(), loadStats()]);
 }
 
-if (getToken()) start().catch(signOut);
+/* Previously any startup failure called signOut, so one flaky request on
+   load discarded a perfectly good token and looked like a session expiry.
+   api() already signs out on a real 401; anything else is retryable. */
+if (getToken()) {
+  start().catch((err) => handleError(err, 'Loading the panel', () => start().catch(() => {})));
+}

@@ -5,7 +5,7 @@
 # Same rules as the loader. max-age stays short because Tampermonkey
 # fetches @updateURL to compare versions — a long cache would delay every
 # future update by the cache lifetime.
-/mttf.user.js
+/sla.user.js
   Content-Type: application/javascript; charset=utf-8
   Cache-Control: public, max-age=300
 

@@ -1,448 +1,912 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Cisco Case Review Assistant — v0.29.0</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Review Assistant — every case, scored before you read it</title>
+<meta name="description" content="A panel that opens inside the case page, scores the case against your team's five review criteria, and fills the review template. Access is by allow-list.">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;700;800&family=Archivo:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#070a16;
-    --accent:#4f8cff;     /* midnight blue */
-    --accent2:#c4a4ff;    /* royal violet */
-    --accent3:#ff7eb6;    /* sakura pink */
-    --accent4:#5ef2c9;    /* aurora teal */
-    --gold:#ffd24a;
-    --text:#e8f0ff; --muted:#9fb2e0; --line:rgba(124,160,255,.18);
-    --panel:rgba(18,24,46,.66);
-    /* mock panel tokens (live-swapped by JS) */
-    --m-bg:#0a1326; --m-text:#e6edff; --m-dim:#9fb2e0; --m-mut:#5e6f9e;
-    --m-acc:#4f8cff; --m-acc2:#6aa6ff; --m-surf:rgba(120,160,255,.08);
-    --m-surf2:rgba(120,160,255,.16); --m-border:rgba(120,160,255,.16);
-    --m-field:rgba(6,12,28,.7); --m-on:#04102b; --m-hA:#1b2a4d; --m-hB:#10182f;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6;}
+/* ==========================================================
+   THE OVERLAP — transparent pigment passes on mulberry paper.
+   Three inks: cyan, amber, scarlet. Their overlaps are not
+   chosen, they are computed — every mixed colour on this page
+   comes from mix-blend-mode:multiply, the way wet pigment
+   actually behaves. Nothing here is a flat swatch of "orange";
+   orange is what happens when amber crosses scarlet.
+   ========================================================== */
+:root{
+  /* Grey stock, not cream. A darker ground costs contrast on every
+     coloured token, so the type siblings below are re-derived for it
+     rather than carried over. */
+  --paper:#D5D5D5;
+  --paper-deep:#C6C6C6;
+  --ink:#2A2622;
+  --ink-soft:#5C5349;
 
-  /* animated backdrop — aurora + drifting starfield */
-  .bg-fx{position:fixed;inset:0;z-index:-3;
-    background:
-      radial-gradient(60vw 60vw at 15% 8%,rgba(79,140,255,.20),transparent 60%),
-      radial-gradient(50vw 50vw at 85% 25%,rgba(196,164,255,.18),transparent 60%),
-      radial-gradient(46vw 46vw at 50% 100%,rgba(94,242,201,.14),transparent 60%),
-      radial-gradient(40vw 40vw at 70% 70%,rgba(255,126,182,.12),transparent 60%),
-      var(--bg);
-    animation:hue 26s ease-in-out infinite alternate;}
-  @keyframes hue{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(40deg)}}
-  #stars{position:fixed;inset:0;z-index:-2;}
-  .grid-fx{position:fixed;inset:0;z-index:-1;opacity:.16;
-    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
-    background-size:52px 52px;mask-image:radial-gradient(circle at 50% 25%,#000 25%,transparent 80%);
-    animation:drift 50s linear infinite;}
-  @keyframes drift{from{background-position:0 0}to{background-position:52px 52px}}
+  --cyan:#0089B8;
+  --amber:#F2A11A;
+  --scarlet:#D8214E;
+  --mark:#D8214E;
+  --ghost:#A9CBDD;
+  --on-solid:#FFFFFF;
 
-  nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
-    padding:16px 6vw;backdrop-filter:blur(14px);background:rgba(7,10,22,.55);border-bottom:1px solid var(--line);}
-  .brand{display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.5px;font-size:1.05rem;}
-  .logo{width:40px;height:40px;filter:drop-shadow(0 0 10px rgba(79,140,255,.6));}
-  .logo .ring{fill:#E2231A;animation:logoRing 10s linear infinite;}
-  .logo .arrow{fill:#fff;}
-  @keyframes logoRing{0%{fill:#4f8cff}25%{fill:#c4a4ff}50%{fill:#ff7eb6}75%{fill:#5ef2c9}100%{fill:#4f8cff}}
-  .brand span{background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3),var(--accent4));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .nav-links a{color:var(--muted);text-decoration:none;margin-left:22px;font-size:.9rem;transition:.25s;}
-  .nav-links a:hover{color:var(--accent);text-shadow:0 0 12px rgba(79,140,255,.55);}
+  /* Pass inks are pigment, measured for the stock, not for text. On this
+     grey, cyan is 2.71:1, scarlet 3.37:1 and amber 1.45:1, so small text
+     uses these darkened siblings (5.28 / 4.84 / 4.81). Raw inks are legal
+     only as pigment and as display lettering; amber never sets type. */
+  --cyan-t:#005A73;
+  --scarlet-t:#AD1739;
+  --amber-t:#7A5000;
 
-  header{text-align:center;padding:13vh 6vw 8vh;}
-  .pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:6px 16px;font-size:.78rem;color:var(--accent);margin-bottom:26px;background:rgba(79,140,255,.07);animation:pulse 3.5s ease-in-out infinite;}
-  @keyframes pulse{50%{box-shadow:0 0 26px rgba(79,140,255,.4)}}
-  h1{font-size:clamp(2.4rem,6vw,4.7rem);line-height:1.05;font-weight:800;letter-spacing:-1px;}
-  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent2) 40%,var(--accent3) 70%,var(--accent4));background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 6s linear infinite;}
-  @keyframes shine{to{background-position:220% center}}
-  .sub{max-width:660px;margin:24px auto 30px;color:var(--muted);font-size:1.12rem;}
+  /* Lower on grey than it was on cream: the darker ground already
+     deepens every pass, so .52 keeps the crossings chromatic instead of
+     letting them silt toward black. */
+  --pass-alpha:.52;
 
-  /* three pillars */
-  .pillars{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:0 auto 38px;}
-  .pillar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-weight:600;font-size:.95rem;backdrop-filter:blur(8px);transition:.3s;}
-  .pillar:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 0 24px rgba(79,140,255,.3);}
-  .pillar .pi{font-size:1.25rem;}
-  .pillar.p1{color:var(--accent4);} .pillar.p1 .pi{filter:drop-shadow(0 0 8px rgba(94,242,201,.6));}
-  .pillar.p2{color:var(--accent);}  .pillar.p2 .pi{filter:drop-shadow(0 0 8px rgba(79,140,255,.6));}
-  .pillar.p3{color:var(--accent3);} .pillar.p3 .pi{filter:drop-shadow(0 0 8px rgba(255,126,182,.6));}
+  --display:"Big Shoulders Stencil Display","Haettenschweiler","Arial Narrow",sans-serif;
+  --mono:"Martian Mono",ui-monospace,"Cascadia Mono",monospace;
+  --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
 
-  .cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
-  .btn-download,.btn-ghost{font:inherit;font-weight:600;padding:14px 30px;border-radius:12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:10px;transition:.3s;border:none;}
-  .btn-download{color:#04121a;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 24px rgba(79,140,255,.45);}
-  .btn-download:hover{transform:translateY(-3px);box-shadow:0 0 40px rgba(124,77,255,.7);}
-  .btn-ghost{color:var(--text);border:1px solid var(--line);background:var(--panel);}
-  .btn-ghost:hover{border-color:var(--accent3);color:var(--accent3);transform:translateY(-3px);}
+  --gut:clamp(18px,4vw,44px);
+  --rule:1.5px solid var(--ink);
+}
 
-  section{padding:7vh 6vw;max-width:1180px;margin:0 auto;}
-  .eyebrow{color:var(--accent4);font-size:.8rem;letter-spacing:3px;text-transform:uppercase;text-align:center;}
-  h2{text-align:center;font-size:clamp(1.8rem,4vw,2.8rem);margin:8px 0 16px;font-weight:800;}
-  .section-sub{text-align:center;color:var(--muted);max-width:620px;margin:0 auto 46px;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;}
-  .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px;backdrop-filter:blur(8px);transition:.3s;overflow:hidden;}
-  .card::before{content:'';position:absolute;inset:0;border-radius:18px;padding:1px;background:linear-gradient(135deg,transparent,transparent);opacity:0;transition:.3s;}
-  .card:hover{transform:translateY(-6px);border-color:var(--accent);box-shadow:0 16px 50px rgba(0,0,0,.5),0 0 30px rgba(79,140,255,.15);}
-  .ic{font-size:1.7rem;width:52px;height:52px;display:grid;place-items:center;border-radius:12px;background:rgba(79,140,255,.12);margin-bottom:16px;}
-  .card h3{font-size:1.12rem;margin-bottom:8px;}
-  .card p{color:var(--muted);font-size:.92rem;}
-  /* tint accents — rotate across cards for fun */
-  .card:nth-child(4n+1) .ic{background:rgba(79,140,255,.14);}
-  .card:nth-child(4n+2) .ic{background:rgba(196,164,255,.14);}
-  .card:nth-child(4n+3) .ic{background:rgba(255,126,182,.14);}
-  .card:nth-child(4n)   .ic{background:rgba(94,242,201,.14);}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font:400 17px/1.6 var(--body);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
 
-  /* ===== INTERACTIVE PANEL MOCK ===== */
-  .preview-wrap{display:flex;justify-content:center;}
-  .cr-mock{position:relative;width:min(390px,100%);background:var(--m-bg);color:var(--m-text);border-radius:14px;overflow:hidden;
-    box-shadow:0 10px 40px rgba(0,0,0,.55),0 0 0 1px var(--m-border),0 0 50px rgba(79,140,255,.12);
-    border:1px solid var(--m-border);font-size:12px;animation:floaty 6s ease-in-out infinite;transition:background .4s,color .4s;}
-  @keyframes floaty{50%{transform:translateY(-8px)}}
-  .cr-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;
-    background:linear-gradient(135deg,var(--m-hA),var(--m-hB));border-bottom:1px solid var(--m-border);}
-  .cr-title{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;}
-  .cr-ver{font-size:10px;color:var(--m-on);font-weight:700;background:var(--m-acc);padding:1px 6px;border-radius:6px;}
-  .cr-ico{width:16px;height:16px;}
-  .cr-hbtns{display:flex;gap:5px;}
-  .cr-hbtn{background:var(--m-surf2);color:var(--m-dim);border-radius:7px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;user-select:none;transition:.15s;border:none;}
-  .cr-hbtn:hover{background:var(--m-acc);color:var(--m-on);}
-  .cr-hbtn:active{transform:scale(.9);}
-  #themeBtn{cursor:pointer;}
-  .cr-themehint{font-size:9px;color:var(--m-mut);text-align:center;padding:4px 0 0;}
-  .cr-body{padding:10px 12px 14px;position:relative;z-index:1;}
-  .cr-greet{padding:9px 12px;border-radius:11px;background:linear-gradient(135deg,var(--m-surf2),var(--m-surf));border:1px solid var(--m-border);font-size:11.5px;font-weight:600;margin-bottom:8px;}
-  .cr-greet small{display:block;font-weight:500;color:var(--m-dim);font-size:10px;margin-top:2px;}
-  .cr-summary{padding:12px 14px;border-radius:12px;background:var(--m-surf);border:1px solid var(--m-border);}
-  .cr-sum-top{display:flex;align-items:center;justify-content:space-between;}
-  .cr-score{display:flex;align-items:baseline;gap:4px;}
-  .cr-score .num{font-size:30px;font-weight:800;line-height:1;color:#10b981;}
-  .cr-score .max{font-size:12px;color:var(--m-mut);font-weight:600;}
-  .cr-grade{padding:3px 10px;border-radius:8px;font-weight:800;font-size:14px;color:#fff;background:#10b981;}
-  .cr-meta{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
-  .cr-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:var(--m-surf);color:var(--m-dim);border:1px solid var(--m-border);font-size:11px;}
-  .cr-chip.ok{background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.25);}
-  .cr-rowcard{margin-top:8px;border-radius:11px;background:var(--m-surf);border:1px solid var(--m-border);overflow:hidden;}
-  .cr-rowhead{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;user-select:none;transition:.15s;}
-  .cr-rowhead:hover{background:var(--m-surf2);}
-  .cr-rowhead .t{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px;color:var(--m-text);}
-  .cr-badge{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:700;color:#0b1220;}
-  .cr-chev{color:var(--m-mut);font-size:11px;margin-left:8px;transition:transform .2s;display:inline-block;}
-  .cr-rowcard.open .cr-chev{transform:rotate(90deg);}
-  .cr-rowbody{display:none;padding:0 12px 12px;font-size:11px;color:var(--m-dim);line-height:1.5;}
-  .cr-rowcard.open .cr-rowbody{display:block;}
-  .cr-kv{display:flex;justify-content:space-between;padding:2px 0;}
-  .cr-lb{margin-top:8px;border-radius:11px;background:var(--m-surf);border:1px solid var(--m-border);padding:10px 12px;}
-  .cr-lb .lbl{font-weight:600;font-size:12px;color:var(--m-text);display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-  .cr-lb-tabs{display:flex;gap:6px;margin-bottom:8px;}
-  .cr-lb-tab{flex:1;padding:5px;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:10.5px;background:var(--m-surf2);color:var(--m-dim);transition:.15s;}
-  .cr-lb-tab.active{background:linear-gradient(135deg,var(--m-acc),var(--m-acc2));color:var(--m-on);}
-  .cr-lb-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;margin-top:4px;border:1px solid var(--m-border);}
-  .cr-lb-row.me{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.25);}
-  .cr-lb-rank{width:22px;text-align:center;font-weight:800;}
-  .cr-lb-user{flex:1;font-weight:600;}
-  .cr-lb-count{font-weight:800;color:var(--m-text);}
-  .cr-primary{margin-top:10px;width:100%;padding:10px;border-radius:10px;font-weight:700;font-size:12px;color:#fff;text-align:center;background:linear-gradient(135deg,#10b981,#059669);cursor:pointer;transition:.2s;}
-  .cr-primary:hover{filter:brightness(1.1);}
+/* Paper fibre. A real turbulence field, not a gradient pretending. */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23f)' opacity='.42'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply;opacity:.14;
+}
+main,header,footer{position:relative;z-index:1}
 
-  footer{text-align:center;padding:46px 6vw;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;}
-  footer .hearts{color:var(--accent3);}
+h1,h2,h3,.stencil{
+  font-family:var(--display);font-weight:800;
+  text-transform:uppercase;letter-spacing:.005em;line-height:.86;
+  margin:0;
+}
+/* The lettering used to be eroded by the paper filter and carried two
+   inks at once. Both were reading as noise, so the type is now clean and
+   the colour is rationed: one accent word per heading, scarlet only. The
+   passes still carry the world; the headlines no longer compete with it. */
+h1 .s,h2 .s{color:var(--scarlet-t)}
+h1{font-size:clamp(3.1rem,9.2vw,7.4rem)}
+h2{font-size:clamp(2.3rem,5.6vw,4.5rem)}
+h3{font-size:clamp(1.25rem,2.3vw,1.7rem);line-height:.95}
+
+p{margin:0 0 1.05em}
+a{color:inherit}
+.wrap{width:min(1240px,100% - var(--gut)*2);margin-inline:auto}
+.lede{font-size:clamp(1.05rem,1.5vw,1.3rem);line-height:1.5;max-width:64ch;color:var(--ink-soft)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ---- registration crosses: the world's punctuation ---------- */
+.reg{position:absolute;width:19px;height:19px;pointer-events:none;opacity:.5}
+.reg::before,.reg::after{content:"";position:absolute;background:var(--cyan)}
+.reg::before{left:50%;top:0;width:1.2px;height:100%;transform:translateX(-50%)}
+.reg::after{top:50%;left:0;height:1.2px;width:100%;transform:translateY(-50%)}
+.reg i{position:absolute;inset:4.5px;border:1.2px solid var(--cyan);border-radius:50%}
+
+/* ---- focus: a scarlet pass around the element --------------- */
+:focus-visible{outline:2.5px solid var(--scarlet);outline-offset:3px}
+
+/* ---- masthead ---------------------------------------------- */
+header.mast{border-bottom:var(--rule);background:var(--paper)}
+.mast-in{display:flex;align-items:center;gap:26px;padding:13px 0;flex-wrap:wrap}
+.mark{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;
+  font-size:1.32rem;text-transform:uppercase;letter-spacing:.02em;text-decoration:none;line-height:1}
+.mark svg{display:block;flex:none}
+.mast nav{display:flex;gap:20px;margin-left:auto;flex-wrap:wrap}
+.mast nav a{
+  font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.1em;
+  text-decoration:none;color:var(--ink-soft);padding:7px 0;border-bottom:2px solid transparent;
+}
+.mast nav a:hover,.mast nav a[aria-current="true"]{color:var(--ink);border-bottom-color:var(--scarlet)}
+
+/* ---- buttons: clipped corners, the world's own cut ---------- */
+.btn{
+  --bg:var(--scarlet-t);--fg:var(--on-solid);
+  position:relative;display:inline-flex;align-items:center;gap:11px;
+  padding:14px 26px;background:var(--bg);color:var(--fg);
+  font:700 12.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.09em;
+  text-decoration:none;border:0;cursor:pointer;
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);
+  transition:transform .16s cubic-bezier(.2,.8,.3,1),filter .16s;
+}
+.btn:hover{transform:translate(-1.5px,-1.5px);filter:saturate(1.15)}
+.btn:active{transform:translate(0,0)}
+.btn--ghost{--bg:transparent;--fg:var(--cyan-t);box-shadow:inset 0 0 0 1.5px var(--cyan-t)}
+.btn--ghost:hover{--bg:var(--cyan-t);--fg:var(--on-solid)}
+.btn svg{flex:none}
+
+/* ---- the sheet: where passes are laid ---------------------- */
+.sheet{
+  position:relative;background:var(--paper);border:var(--rule);
+  padding:clamp(20px,3vw,34px);
+}
+.sheet>.reg{opacity:.62}
+.sheet>.reg:nth-of-type(1){top:-9.5px;left:-9.5px}
+.sheet>.reg:nth-of-type(2){top:-9.5px;right:-9.5px}
+.sheet>.reg:nth-of-type(3){bottom:-9.5px;left:-9.5px}
+.sheet>.reg:nth-of-type(4){bottom:-9.5px;right:-9.5px}
+
+.sheet-head{
+  display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  flex-wrap:wrap;border-bottom:1px solid rgba(42,38,34,.22);padding-bottom:11px;margin-bottom:22px;
+}
+.slug{font:400 10.5px/1.5 var(--mono);text-transform:uppercase;letter-spacing:.13em;color:var(--ink-soft)}
+
+/* ---- HERO --------------------------------------------------- */
+.hero{padding:clamp(40px,6vw,84px) 0 clamp(34px,5vw,64px)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:clamp(30px,4.5vw,64px);align-items:start}
+@media (max-width:960px){.hero-grid{grid-template-columns:1fr}}
+
+h1 .l{display:block}
+
+.gate{
+  margin:26px 0;padding:15px 17px;border:1.5px solid var(--scarlet);
+  background:rgba(216,33,78,.09);max-width:56ch;
+}
+.gate p{margin:0;font-size:.97rem;line-height:1.5}
+.gate strong{font-weight:700}
+.acts{display:flex;gap:13px;flex-wrap:wrap;margin-top:24px}
+
+/* ---- passes: the load-bearing mechanism -------------------- */
+.passes{display:grid;gap:10px;margin:4px 0 0}
+.pass{display:grid;grid-template-columns:minmax(90px,auto) minmax(0,1fr) auto;gap:14px;align-items:center}
+.pass-name{font:600 11px/1.25 var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.pass-track{position:relative;height:38px}
+.pass-pts{font:600 12px/1 var(--mono);color:var(--ink-soft);white-space:nowrap}
+
+/* Each swath is one laid stroke, and it laps 9px into its neighbours,
+   which is the whole point. Nothing here is painted orange or violet:
+   amber crossing scarlet computes the orange, scarlet crossing cyan
+   computes the violet. Take the overlap away and the world is just bars. */
+.swath{
+  position:absolute;left:0;
+  top:-9px;height:calc(100% + 18px);
+  mix-blend-mode:multiply;
+  filter:url(#wet);
+}
+.swath::before{
+  content:"";position:absolute;inset:0;background:var(--c);opacity:var(--pass-alpha);
+}
+/* pigment pools at the edge of a drying wash */
+.swath::after{
+  content:"";position:absolute;inset:0;
+  box-shadow:inset 0 0 0 2.5px var(--c);opacity:.5;
+}
+
+/* the ghost of a pass that missed register */
+.ghostpass{
+  position:absolute;left:0;
+  top:-9px;height:calc(100% + 18px);
+  background:var(--ghost);opacity:.5;mix-blend-mode:multiply;filter:url(#wet);
+}
+
+/* the authored moment: passes flood the sheet, in sequence */
+@keyframes flood{
+  from{clip-path:inset(0 100% 0 0)}
+  to{clip-path:inset(0 0 0 0)}
+}
+.inked .swath,.inked .ghostpass{
+  animation:flood 1.15s cubic-bezier(.16,1,.3,1) backwards;
+  animation-delay:calc(var(--i)*.135s);
+}
+
+@media (prefers-reduced-motion:reduce){
+  .inked .swath,.inked .ghostpass{animation:none}
+}
+
+/* ---- score stamp ------------------------------------------- */
+.stamp{
+  display:inline-grid;place-items:center;padding:11px 20px;
+  border:2.5px solid var(--scarlet);color:var(--scarlet-t);
+  transform:rotate(-2.4deg);
+}
+.stamp b{font-family:var(--display);font-weight:800;font-size:2.5rem;line-height:.82;display:block}
+.stamp span{font:600 9.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.16em;margin-top:5px}
+
+.verdict{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:24px;
+  border-top:1px solid rgba(42,38,34,.22);padding-top:20px}
+.verdict p{margin:0;font-size:.95rem;max-width:40ch;color:var(--ink-soft)}
+.verdict b{color:var(--scarlet-t);font-weight:600}
+
+/* ---- sections ---------------------------------------------- */
+section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
+.sec-head{max-width:70ch;margin-bottom:clamp(30px,4vw,52px)}
+.sec-head p{margin-top:18px}
+
+/* criteria detail */
+/* overflow:hidden clips the chips at the frame's own rules. Without it
+   the -30px bleed runs straight through the outer border and reads as a
+   mistake rather than as overprint across a divider. */
+.crit{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;
+  border:var(--rule);overflow:hidden}
+.crit>div{padding:24px;border-right:1px solid rgba(42,38,34,.2)}
+.crit>div:last-child{border-right:0}
+/* two across, not one: at 1-up the chips have no neighbour to cross and
+   the mechanism collapses into five flat swatches */
+@media (max-width:1000px){
+  .crit{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .crit>div{border-bottom:1px solid rgba(42,38,34,.2)}
+  .crit>div:nth-child(2n){border-right:0}
+  .crit>div:nth-last-child(-n+1){border-bottom:0}
+}
+/* Each criterion's chip runs past its own column and crosses its
+   neighbour's, so the divider between two criteria carries the colour
+   the two of them compute. A chip that stops at its cell edge would be
+   the flat swatch this world does not have. */
+.crit .chip{
+  display:block;height:13px;margin-bottom:16px;position:relative;
+  width:calc(100% + 60px);margin-left:-30px;
+  opacity:var(--pass-alpha);
+  mix-blend-mode:multiply;filter:url(#wet);
+}
+/* cell padding is 24px, so a -24px pull only reaches the cell edge and the
+   chips meet without crossing. -36px puts 12px of each chip into its
+   neighbour; .crit's overflow:hidden clips the outer ends at the frame. */
+@media (max-width:1000px){
+  .crit .chip{width:calc(100% + 72px);margin-left:-36px}
+}
+.crit h3{margin-bottom:9px}
+.crit .pts{font:600 11px/1 var(--mono);color:var(--ink-soft);letter-spacing:.06em;display:block;margin-bottom:14px}
+.crit p{font-size:.94rem;line-height:1.55;margin:0;color:var(--ink-soft)}
+.crit .rule{margin-top:13px;font:400 11px/1.5 var(--mono);color:var(--ink);border-top:1px solid rgba(42,38,34,.2);padding-top:11px}
+
+/* ---- the panel in situ ------------------------------------- */
+.situ{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.25fr);gap:clamp(28px,4vw,56px);align-items:center}
+@media (max-width:940px){.situ{grid-template-columns:minmax(0,1fr)}}
+.browser{border:var(--rule);background:var(--paper);position:relative;min-width:0}
+.browser-bar{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid rgba(42,38,34,.24)}
+/* min-width:0 or the nowrap URL sets this flex item's floor and drags the
+   whole page wider than the phone viewport */
+.browser-bar span{font:400 10px/1 var(--mono);color:var(--ink-soft);letter-spacing:.04em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.browser-body{display:grid;grid-template-columns:minmax(0,1fr) 172px;min-height:270px}
+@media (max-width:560px){.browser-body{grid-template-columns:minmax(0,1fr) 132px}}
+.host{padding:17px;border-right:1px solid rgba(42,38,34,.2);min-width:0}
+.host-line{height:8px;background:var(--paper-deep);margin-bottom:9px}
+.host-line.s{width:62%}
+.host-line.m{width:84%}
+.host-line.t{width:38%;background:var(--ghost);opacity:.7}
+.panel{padding:14px 13px;background:rgba(14,136,180,.07)}
+.panel h4{font:800 15px/1 var(--display);text-transform:uppercase;margin:0 0 12px;letter-spacing:.02em}
+.panel-row{display:flex;justify-content:space-between;gap:8px;font:400 10px/1.7 var(--mono)}
+.panel-row b{font-weight:600}
+.launcher{
+  position:absolute;right:14px;bottom:14px;width:42px;height:42px;border-radius:50%;
+  background:var(--mark);display:grid;place-items:center;color:var(--on-solid);
+  font:800 15px/1 var(--display);box-shadow:0 3px 12px rgba(42,38,34,.28);
+}
+
+/* ---- capability list --------------------------------------- */
+/* Fixed three across, not auto-fit: six items into an auto-fit track
+   count left two empty cells rendering as a grey slab. Each entry is
+   ruled by a pass of ink rather than boxed as a card. */
+.does{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  column-gap:clamp(22px,3vw,44px);row-gap:clamp(30px,3.6vw,48px)}
+@media (max-width:880px){.does{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:580px){.does{grid-template-columns:minmax(0,1fr)}}
+/* a laid pass of ink, not a uniform coloured rule: each entry gets its own
+   ink and its own stroke length, so six entries do not read as six cards */
+.does>div{padding-top:17px;position:relative}
+.does>div::before{
+  content:"";position:absolute;top:0;left:0;height:9px;
+  background:var(--c);opacity:var(--pass-alpha);
+  mix-blend-mode:multiply;filter:url(#wet);
+}
+.does>div:nth-child(1)::before{--c:var(--amber);width:100%}
+.does>div:nth-child(2)::before{--c:var(--scarlet);width:64%}
+.does>div:nth-child(3)::before{--c:var(--cyan);width:86%}
+.does>div:nth-child(4)::before{--c:var(--cyan);width:72%}
+.does>div:nth-child(5)::before{--c:var(--amber);width:94%}
+.does>div:nth-child(6)::before{--c:var(--scarlet);width:58%}
+.does h3{margin-bottom:10px;font-size:1.18rem}
+.does p{margin:0;font-size:.93rem;color:var(--ink-soft);line-height:1.55}
+
+/* ---- the game layer, one section --------------------------- */
+.team{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(26px,4vw,52px);align-items:start}
+@media (max-width:900px){.team{grid-template-columns:1fr}}
+.board{border:var(--rule)}
+.board-row{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;
+  padding:11px 15px;border-bottom:1px solid rgba(42,38,34,.16);font-size:.95rem}
+.board-row:last-child{border-bottom:0}
+.board-row .r{font:600 12px/1 var(--mono);color:var(--ink-soft)}
+.board-row .v{font:600 12px/1 var(--mono)}
+.board-row.top{background:rgba(239,162,36,.16)}
+.synthetic{font:400 10.5px/1.5 var(--mono);text-transform:uppercase;letter-spacing:.1em;
+  color:var(--ink-soft);margin-top:11px;display:block}
+.badges{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}
+.badge{
+  font:600 10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;
+  padding:8px 12px;border:1.5px solid var(--amber);color:var(--ink);
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+}
+/* the label sits on paper under its swatch, not in white over seven
+   different hexes where several of them fail contrast and a text-shadow
+   is doing the work */
+.swatches{display:flex;gap:0;margin-top:22px;border:var(--rule)}
+.swatches button{
+  flex:1;border:0;border-right:1px solid rgba(42,38,34,.2);cursor:pointer;
+  position:relative;padding:0 0 26px;background:transparent;min-width:0;
+}
+.swatches button:last-child{border-right:0}
+.swatches button::before{content:"";display:block;height:46px;background:var(--t)}
+.swatches button::after{
+  content:attr(data-n);position:absolute;left:0;right:0;bottom:7px;
+  font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.01em;
+  color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px;
+}
+.swatches button[aria-pressed="true"]::before{box-shadow:inset 0 0 0 3px var(--ink)}
+.swatches button[aria-pressed="true"]::after{text-decoration:underline;text-underline-offset:2px}
+
+/* ---- access ------------------------------------------------ */
+.access-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(28px,4vw,56px);align-items:start}
+@media (max-width:900px){.access-grid{grid-template-columns:1fr}}
+
+/* ---- steps ------------------------------------------------- */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:1px;background:rgba(42,38,34,.2);border:var(--rule);margin:0;padding:0}
+.steps>li{background:var(--paper);padding:26px 24px;list-style:none}
+.steps .n{
+  display:inline-grid;place-items:center;width:30px;height:30px;margin-bottom:15px;
+  background:var(--cyan-t);color:var(--on-solid);font:800 16px/1 var(--display);
+}
+.steps h3{font-size:1.12rem;margin-bottom:9px}
+.steps p{margin:0;font-size:.92rem;color:var(--ink-soft);line-height:1.55}
+.steps a{color:var(--cyan-t);text-underline-offset:3px}
+
+/* ---- sla --------------------------------------------------- */
+.sla{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(26px,4vw,52px);align-items:center}
+@media (max-width:860px){.sla{grid-template-columns:1fr}}
+.sla-bars{display:grid;gap:0}
+.sla-bar{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:center;
+  font:400 10.5px/1 var(--mono);color:var(--ink-soft)}
+.sla-bar+.sla-bar{margin-top:-7px}
+.sla-bar i{height:30px;display:block;opacity:var(--pass-alpha);
+  mix-blend-mode:multiply;filter:url(#wet)}
+
+/* ---- colophon ---------------------------------------------- */
+footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
+.colo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(26px,4vw,52px)}
+@media (max-width:860px){.colo{grid-template-columns:1fr}}
+.colo dl{display:grid;grid-template-columns:auto 1fr;gap:9px 18px;margin:0;font-size:.93rem}
+.colo dt{font:600 10px/1.6 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft)}
+.colo dd{margin:0}
+.colo a{text-underline-offset:3px}
 </style>
 </head>
 <body>
-<div class="bg-fx"></div>
-<canvas id="stars"></canvas>
-<div class="grid-fx"></div>
 
-<nav>
-  <div class="brand">
-    <svg class="logo" viewBox="0 0 100 100" aria-label="Case Review Assistant">
-      <circle class="ring" cx="50" cy="50" r="48"/>
-      <polygon class="arrow" points="25,30 50,50 25,70"/>
-      <polygon class="arrow" points="50,30 75,50 50,70"/>
-    </svg>
-    <span>Case Review Assistant</span>
-  </div>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#preview">Preview</a>
-    <a href="#install">Install</a>
-  </div>
-</nav>
+<!--
+  THESIS: A case review is five transparent passes laid over one paper —
+  the score is what you see through them. Refuses the dev-tool page that
+  opens with a dark gradient hero and a three-up feature grid.
+  OWN-WORLD: Mulberry paper; cyan, amber and scarlet pigment at 62% alpha
+  over multiply, so every mixed colour is computed, never picked; wet
+  displaced edges with pooled rims; registration crosses; clipped-corner
+  components; stencil poster caps over mono measurement.
+  STORY: A cold TAC engineer sees a real case scored against their own five
+  criteria, learns access is by allow-list before installing, and requests it.
+  FIRST VIEWPORT: Offer in one stencil line, allow-list gate directly under
+  it, two actions; right, the case sheet where five passes flood in, one out
+  of register with its ghost, stamped 88/100.
+  FORM: The Overlap — transparent screenprint, rendered in watercolour's hand.
+  Candidate 3 of 7; challenger chosen over the roll. Seed 575e4dc5.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the
+  finish review, the verdict, and DESIGN.md
+-->
 
-<header>
-  <span class="pill"><span class="cra-version">v0.29.0</span> · Tampermonkey Userscript</span>
-  <h1>Review cases at the<br><span class="grad">speed of thought.</span></h1>
-  <p class="sub">A productivity engine for Cisco TAC case review — built to make every review <strong>accurate</strong>, <strong>fast</strong>, and a little more <strong>fun</strong>.</p>
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <!-- the wet edge: pigment creeping into paper fibre -->
+    <filter id="wet" x="-12%" y="-40%" width="124%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.014 0.055" numOctaves="4" seed="9" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- the same paper, at letter scale: shallow enough to keep the
+         stencil legible, deep enough that the edge is printed -->
+    <g id="i-arrow" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+      <path d="M2 8h11"/><path d="M9 4l4 4-4 4"/>
+    </g>
+  </defs>
+</svg>
 
-  <div class="pillars">
-    <div class="pillar p1"><span class="pi">🎯</span> Built for Accuracy</div>
-    <div class="pillar p2"><span class="pi">⚡</span> Faster Reviews</div>
-    <div class="pillar p3"><span class="pi">🎉</span> Genuinely Fun</div>
+<header class="mast">
+  <div class="wrap mast-in">
+    <a class="mark" href="#top">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" focusable="false">
+        <rect x="2"  y="6" width="13" height="13" fill="#0089B8" opacity=".75" style="mix-blend-mode:multiply"/>
+        <rect x="7"  y="3" width="13" height="13" fill="#F2A11A" opacity=".75" style="mix-blend-mode:multiply"/>
+        <rect x="11" y="9" width="13" height="13" fill="#D8214E" opacity=".75" style="mix-blend-mode:multiply"/>
+      </svg>
+      Case&nbsp;Review&nbsp;Assistant
+    </a>
+    <nav aria-label="Sections">
+      <a href="#score">The five passes</a>
+      <a href="#inside">Where it runs</a>
+      <a href="#does">What it does</a>
+      <a href="#access">Access</a>
+      <a href="#install">Install</a>
+    </nav>
   </div>
-
-  <div class="cta">
-    <a href="/loader.user.js" class="btn-download">⬇ Install Loader</a>
-    <a href="/mttf.user.js" class="btn-ghost">⏱ Install MTTF Script</a>
-    <a href="#preview" class="btn-ghost">▶ See it in action</a>
-  </div>
-  <p style="margin-top:18px;font-size:13.5px;color:var(--dim,#9fb2e0);">
-    You can download the <strong>MTTF Script</strong> from here — SLA colour guard
-    plus a Mean&nbsp;Time&nbsp;To&nbsp;Fix histogram on every case.
-    <span style="opacity:.75">Separate, standalone script · v1.6.1</span>
-  </p>
 </header>
 
-<section id="why">
-  <p class="eyebrow">Why it exists</p>
-  <h2>Three things, done right</h2>
-  <p class="section-sub">Case review shouldn't be slow, error-prone, or soul-draining. The Assistant tackles all three at once.</p>
-  <div class="grid" style="max-width:980px;margin:0 auto;">
-    <div class="card"><div class="ic">🎯</div><h3>Accuracy first</h3><p>Every field is auto-extracted and cross-checked — owner, age, GCI freshness, phone logs, Sherlock handling and sentiment — with manual-verify flags surfaced so nothing slips through.</p></div>
-    <div class="card"><div class="ic">⚡</div><h3>Speed by design</h3><p>One click loads the panel, fills the Estarta template, and a bulk queue auto-advances through dozens of SRs. What took minutes now takes seconds.</p></div>
-    <div class="card"><div class="ic">🎉</div><h3>Fun on purpose</h3><p>Themes, particle effects, confetti, achievements and a team leaderboard turn a repetitive task into something you actually look forward to.</p></div>
-  </div>
-</section>
+<main id="top">
 
-<section id="features">
-  <p class="eyebrow">Capabilities</p>
-  <h2>Everything in one panel</h2>
-  <div class="grid">
-    <div class="card"><div class="ic">🔍</div><h3>Smart Extraction</h3><p>Auto-pulls SR number, case age, owner, owner-since date, and last engineer activity the moment a case loads.</p></div>
-    <div class="card"><div class="ic">🩺</div><h3>Case Health Score</h3><p>A 0–100 score with an A–F grade, broken down across GCI freshness, phone log, sentiment, activity, and age.</p></div>
-    <div class="card"><div class="ic">🔮</div><h3>Sherlock Detection</h3><p>Detects Sherlock handling, transfer & requeue messages, and surfaces the AI's reasoning for escalation review.</p></div>
-    <div class="card"><div class="ic">😊</div><h3>Sentiment Analysis</h3><p>Reads prior reviews to gauge sentiment, with a trend sparkline and the age-&gt;5 Positive/Negative rule enforced.</p></div>
-    <div class="card"><div class="ic">📞</div><h3>Phone Log Check</h3><p>Verifies a phone log was added within 3 days of ownership, with per-owner timestamps and a diagnose tool.</p></div>
-    <div class="card"><div class="ic">📋</div><h3>GCI Status</h3><p>Checks each GCI field's freshness against the 3-day threshold and flags when an update is needed.</p></div>
-    <div class="card"><div class="ic">⚡</div><h3>Bulk Review Queue</h3><p>Paste SRs from Excel, then glide through with auto-advance and one-click "Open" links that auto-load each panel.</p></div>
-    <div class="card"><div class="ic">📝</div><h3>Auto Form Filler</h3><p>Carries every field over to the Estarta review template and fills it in for you — just verify and submit.</p></div>
-    <div class="card"><div class="ic">🏆</div><h3>Team Leaderboard</h3><p>Today / Week / Month / Total standings synced across the team, with medals and your row highlighted.</p></div>
-    <div class="card"><div class="ic">🎖️</div><h3>Achievements</h3><p>Unlock 19+ badges — streaks, daily milestones, all-clear cases, and a hidden secret to discover.</p></div>
-    <div class="card"><div class="ic">📜</div><h3>Review History</h3><p>A timeline merging reviews posted on the case with ones you logged here, complete with grades and authors.</p></div>
-    <div class="card"><div class="ic">🎨</div><h3>Living Themes</h3><p>Midnight starlight, Cyberpunk rain, Sakura petals, Aurora bands, Royal gold dust & more — each with its own animated particle effect.</p></div>
-    <div class="card"><div class="ic">📊</div><h3>Personal Stats</h3><p>Track today, this week, this month and all-time reviews, deduped once per case per day.</p></div>
-    <div class="card"><div class="ic">💬</div><h3>Status Templates</h3><p>Auto-detects the latest Current Status from prior reviews and offers a dozen quick-pick templates.</p></div>
-    <div class="card"><div class="ic">👋</div><h3>Smart Greetings</h3><p>Time-of-day aware welcome banners that keep the grind a little more human.</p></div>
-    <div class="card"><div class="ic">🎉</div><h3>All-Clear Celebration</h3><p>Confetti fires when a case has zero flags to verify — clean work deserves a little flair.</p></div>
-    <div class="card"><div class="ic">🌈</div><h3>Rainbow Names</h3><p>A playful animated username for select users — a little reward for the legends.</p></div>
-    <div class="card"><div class="ic">🚀</div><h3>Zero Setup</h3><p>Install once and the launcher appears next to the SR — click it and the panel loads automatically.</p></div>
-  </div>
-</section>
+  <!-- ============ HERO ============ -->
+  <div class="hero wrap">
+    <div class="hero-grid">
+      <div>
+        <h1>
+          <span class="l">Every case,</span>
+          <span class="l"><span class="s">scored</span> before</span>
+          <span class="l">you read it.</span>
+        </h1>
 
-<section id="preview">
-  <p class="eyebrow">In action</p>
-  <h2>See the script in action</h2>
-  <p class="section-sub">This is a live mock-up — click the <strong>🎨</strong> to swap themes, expand the cards, and switch leaderboard tabs. Just like the real thing.</p>
-  <div class="preview-wrap">
-    <div class="cr-mock" id="mock">
-      <div class="cr-head">
-        <div class="cr-title">
-          <svg class="cr-ico" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#E2231A"/><polygon points="25,30 50,50 25,70" fill="#fff"/><polygon points="50,30 75,50 50,70" fill="#fff"/></svg>
-          Case Reader · a1b2c3 <span class="cr-ver cra-version">v0.29.0</span>
+        <p class="lede" style="margin-top:28px">
+          The Case Review Assistant opens inside the case page, scores the case
+          against your team's five review criteria, and carries the findings into the
+          review template. You stop reading to find problems and start confirming them.
+        </p>
+
+        <div class="gate">
+          <p><strong>Access is by allow-list.</strong> There is no self-service signup. Installing
+          without being on the list gives you a script that loads and then does nothing, with no
+          error explaining why. Ask first; it is one message.</p>
         </div>
-        <div class="cr-hbtns"><button class="cr-hbtn" id="themeBtn" title="Cycle theme">🎨</button><button class="cr-hbtn" title="Minimize">—</button><button class="cr-hbtn" title="Close">×</button></div>
+
+        <div class="acts">
+          <a class="btn" href="mailto:odemar@cisco.com?subject=Case%20Review%20Assistant%20access%20request&amp;body=Hi%20Oday%2C%0A%0APlease%20add%20me%20to%20the%20Case%20Review%20Assistant%20allow-list.%0A%0AUsername%3A%20">
+            Request access
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
+          </a>
+          <a class="btn btn--ghost" href="#score">See the five criteria</a>
+        </div>
       </div>
-      <div class="cr-body">
-        <div class="cr-themehint" id="themeName">Theme: Midnight 🌙 — click 🎨 to cycle</div>
-        <div class="cr-greet">Good afternoon, user1 🌤️<small>Have a productive afternoon, user1 🚀</small></div>
-        <div class="cr-summary">
-          <div class="cr-sum-top">
-            <div class="cr-score"><span class="num">92</span><span class="max">/100</span></div>
-            <span class="cr-grade">A</span>
+
+      <!-- the sheet: the thesis, not an illustration -->
+      <div class="sheet" id="sheet">
+        <span class="reg"><i></i></span><span class="reg"><i></i></span>
+        <span class="reg"><i></i></span><span class="reg"><i></i></span>
+
+        <div class="sheet-head">
+          <span class="slug">Case SR 698-451-2207 · demonstration</span>
+          <span class="slug">Five passes</span>
+        </div>
+
+        <div class="passes">
+          <!-- ink order is load-bearing: amber/scarlet/cyan/scarlet/amber
+               means every seam between two passes computes either the
+               overlap orange or the overlap violet, never a muddy olive -->
+          <div class="pass">
+            <span class="pass-name">GCI<br>Freshness</span>
+            <span class="pass-track"><i class="swath" style="--c:var(--amber);--i:0;width:100%"></i></span>
+            <span class="pass-pts">25 / 25</span>
           </div>
-          <div class="cr-meta">
-            <span class="cr-chip">👤 user1</span>
-            <span class="cr-chip">📅 2 days</span>
-            <span class="cr-chip ok">✓ all clear</span>
+          <div class="pass">
+            <span class="pass-name">Phone<br>Log</span>
+            <span class="pass-track">
+              <i class="ghostpass" style="--i:1;width:80%;left:6%"></i>
+              <i class="swath" style="--c:var(--scarlet);--i:1;width:40%"></i>
+            </span>
+            <span class="pass-pts">8 / 20</span>
+          </div>
+          <div class="pass">
+            <span class="pass-name">Sentiment</span>
+            <span class="pass-track"><i class="swath" style="--c:var(--cyan);--i:2;width:100%"></i></span>
+            <span class="pass-pts">20 / 20</span>
+          </div>
+          <div class="pass">
+            <span class="pass-name">Engineer<br>Activity</span>
+            <span class="pass-track"><i class="swath" style="--c:var(--scarlet);--i:3;width:100%"></i></span>
+            <span class="pass-pts">20 / 20</span>
+          </div>
+          <div class="pass">
+            <span class="pass-name">Case Age</span>
+            <span class="pass-track"><i class="swath" style="--c:var(--amber);--i:4;width:100%"></i></span>
+            <span class="pass-pts">15 / 15</span>
           </div>
         </div>
 
-        <div class="cr-rowcard" data-toggle>
-          <div class="cr-rowhead"><span class="t">🩺 Health Breakdown</span><span><span class="cr-badge" style="background:#10b981;">A</span><span class="cr-chev">▶</span></span></div>
-          <div class="cr-rowbody">
-            <div class="cr-kv"><span>GCI Freshness</span><b>25/25</b></div>
-            <div class="cr-kv"><span>Phone Log</span><b>20/20</b></div>
-            <div class="cr-kv"><span>Sentiment</span><b>20/20</b></div>
-            <div class="cr-kv"><span>Engineer Activity</span><b>20/20</b></div>
-            <div class="cr-kv"><span>Age</span><b>15/15</b></div>
-          </div>
+        <div class="verdict">
+          <span class="stamp"><b>88</b><span>of 100</span></span>
+          <p>One pass missed register: <b>no phone log within 3 days of ownership.</b>
+          That is the whole review: the drifted band is what you write up.</p>
         </div>
-
-        <div class="cr-rowcard" data-toggle>
-          <div class="cr-rowhead"><span class="t">🔮 Sherlock Status</span><span><span class="cr-badge" style="background:#64748b;color:#fff;">No</span><span class="cr-chev">▶</span></span></div>
-          <div class="cr-rowbody">Handled by Sherlock: <b>No</b><br>Age &lt; 5 days → confident default, no manual verify needed.</div>
-        </div>
-
-        <div class="cr-rowcard" data-toggle>
-          <div class="cr-rowhead"><span class="t">📞 Phone Log Check</span><span><span class="cr-badge" style="background:#10b981;">LOG ✓</span><span class="cr-chev">▶</span></span></div>
-          <div class="cr-rowbody">Phone number on case: <b>Yes</b><br>Log within 3 days: <b>Yes</b> ✓</div>
-        </div>
-
-        <div class="cr-lb">
-          <div class="lbl">🏆 Leaderboard <span class="cr-badge" style="background:#6366f1;color:#fff;">Team</span></div>
-          <div class="cr-lb-tabs">
-            <button class="cr-lb-tab" data-period="today">Today</button>
-            <button class="cr-lb-tab active" data-period="week">Week</button>
-            <button class="cr-lb-tab" data-period="month">Month</button>
-            <button class="cr-lb-tab" data-period="total">Total</button>
-          </div>
-          <div id="lbList"></div>
-        </div>
-
-        <div class="cr-primary" id="celebrate">📝 Open Case Review Template</div>
       </div>
     </div>
   </div>
-</section>
 
-<section id="unlock">
-  <p class="eyebrow">Progression</p>
-  <h2>Unlock as you go</h2>
-  <p class="section-sub">19+ achievements turn the daily grind into a game worth playing.</p>
-  <div class="grid">
-    <div class="card"><div class="ic">🎯</div><h3>First Blood</h3><p>Log your very first review and get on the board.</p></div>
-    <div class="card"><div class="ic">🔥</div><h3>On Fire</h3><p>Knock out 5 reviews in a single day.</p></div>
-    <div class="card"><div class="ic">🗓️</div><h3>Weekly Warrior</h3><p>Keep a review streak going across the work week.</p></div>
-    <div class="card"><div class="ic">✨</div><h3>Flawless</h3><p>Review an all-clear case with no flags to verify.</p></div>
-    <div class="card"><div class="ic">🧼</div><h3>Perfectionist</h3><p>Log 5 all-clear cases — spotless work all around.</p></div>
-    <div class="card"><div class="ic">🥚</div><h3>Secret Keeper</h3><p>Discover the hidden command tucked inside the script.</p></div>
-  </div>
-</section>
+  <!-- ============ THE FIVE PASSES ============ -->
+  <section id="score">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>One hundred points,<br><span class="s">split five ways.</span></h2>
+        <p class="lede">Not a generic checklist. These are your team's review criteria with your
+        team's thresholds, and the split is fixed and inspectable, so you can always see why a case
+        scored what it scored.</p>
+      </div>
 
-<section id="install" style="text-align:center">
-  <p class="eyebrow">Get started</p>
-  <h2>Up and running in 4 steps</h2>
-  <div class="grid" style="text-align:left;max-width:980px;margin:0 auto 40px">
-    <div class="card"><div class="ic">1️⃣</div><h3>Request Access</h3><p>The script is licensed for authorized users only. Reach out on Webex to <strong>user1@cisco.com</strong> to get your username added to the access list.</p></div>
-    <div class="card"><div class="ic">2️⃣</div><h3>Install Tampermonkey</h3><p>Add the Tampermonkey extension to your browser from its official store.</p></div>
-    <div class="card"><div class="ic">3️⃣</div><h3>Click Install Loader</h3><p>Hit the button below — Tampermonkey will open a one-click install prompt automatically.</p></div>
-    <div class="card"><div class="ic">4️⃣</div><h3>Open a Case</h3><p>Confirm the install, then open any supported case. The red launcher appears next to the SR — click it and the panel loads.</p></div>
-  </div>
-  <div class="cta">
-    <a href="/loader.user.js" class="btn-download">⬇ Install Loader</a>
-    <a href="/mttf.user.js" class="btn-ghost">⏱ Install MTTF Script</a>
-  </div>
-  <p style="margin-top:18px;font-size:13.5px;color:var(--dim,#9fb2e0);max-width:640px;margin-left:auto;margin-right:auto;">
-    You can download the <strong>MTTF Script</strong> from here. It is a separate,
-    standalone userscript — install it on its own, no access list required.
-  </p>
-</section>
+      <div class="crit">
+        <div>
+          <span class="chip" style="background:var(--amber)"></span>
+          <span class="pts">25 points</span>
+          <h3>GCI Freshness</h3>
+          <p>Whether the case's GCI has been kept current, or has been left to go stale while the case moved.</p>
+          <p class="rule">Threshold: 3 days</p>
+        </div>
+        <div>
+          <span class="chip" style="background:var(--scarlet)"></span>
+          <span class="pts">20 points</span>
+          <h3>Phone Log</h3>
+          <p>Whether a phone log exists, and whether it landed inside the window after the engineer took ownership.</p>
+          <p class="rule">Within 3 days of ownership</p>
+        </div>
+        <div>
+          <span class="chip" style="background:var(--cyan)"></span>
+          <span class="pts">20 points</span>
+          <h3>Sentiment</h3>
+          <p>The tone of the case as it reads to the customer, scored rather than guessed at.</p>
+          <p class="rule">Positive / negative</p>
+        </div>
+        <div>
+          <span class="chip" style="background:var(--scarlet)"></span>
+          <span class="pts">20 points</span>
+          <h3>Engineer Activity</h3>
+          <p>Whether the case shows real engineer movement, or has been sitting with nothing happening on it.</p>
+          <p class="rule">Activity present</p>
+        </div>
+        <div>
+          <span class="chip" style="background:var(--amber)"></span>
+          <span class="pts">15 points</span>
+          <h3>Case Age</h3>
+          <p>How long the case has been open, weighed against whether that age is justified by what is on it.</p>
+          <p class="rule">age &gt; 5 → positive / negative</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHERE IT RUNS ============ -->
+  <section id="inside">
+    <div class="wrap situ">
+      <div>
+        <h2>It opens where<br>you already are.</h2>
+        <p class="lede" style="margin-top:20px">This is not a destination you visit. It is a panel that
+        appears on the case page you already have open, behind a launcher in the corner. Nothing to
+        switch to, nothing to paste between.</p>
+        <p class="lede">It runs on both the case page and the review page, so the workflow stays
+        in one place across both systems.</p>
+      </div>
+
+      <div class="browser">
+        <div class="browser-bar">
+          <i class="dot" style="background:var(--scarlet)"></i>
+          <i class="dot" style="background:var(--amber)"></i>
+          <i class="dot" style="background:var(--cyan)"></i>
+          <span>…/case/6984512207</span>
+        </div>
+        <div class="browser-body">
+          <div class="host">
+            <div class="host-line t"></div>
+            <div class="host-line m"></div>
+            <div class="host-line s"></div>
+            <div class="host-line m"></div>
+            <div class="host-line"></div>
+            <div class="host-line s"></div>
+            <div class="host-line m"></div>
+            <div class="host-line"></div>
+          </div>
+          <div class="panel">
+            <h4>Review</h4>
+            <div class="panel-row"><span>GCI</span><b>25</b></div>
+            <div class="panel-row"><span>Phone</span><b>8</b></div>
+            <div class="panel-row"><span>Sentmt</span><b>20</b></div>
+            <div class="panel-row"><span>Activity</span><b>20</b></div>
+            <div class="panel-row"><span>Age</span><b>15</b></div>
+            <div class="panel-row" style="margin-top:11px;border-top:1px solid rgba(42,38,34,.3);padding-top:9px">
+              <span>Score</span><b>88</b>
+            </div>
+          </div>
+        </div>
+        <span class="launcher" aria-hidden="true">CR</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WHAT IT DOES ============ -->
+  <section id="does">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>The reading, the checking,<br>and the retyping.</h2>
+        <p class="lede">Scoring is the middle of the job. These are the parts on either side of it.</p>
+      </div>
+
+      <div class="does">
+        <div>
+          <h3>Case extraction</h3>
+          <p>Reads the case off the page (dates, owners, notes, activity) so nothing has to be copied by hand.</p>
+        </div>
+        <div>
+          <h3>Template auto-fill</h3>
+          <p>Carries the findings into the review template, which is the step that used to be pure retyping.</p>
+        </div>
+        <div>
+          <h3>Bulk review queue</h3>
+          <p>Runs a queue of cases in sequence instead of one at a time, so a review session is one pass, not many.</p>
+        </div>
+        <div>
+          <h3>Phone log diagnose</h3>
+          <p>Shows per-owner timestamps and explains which log it found and why it did or did not count.</p>
+        </div>
+        <div>
+          <h3>Sherlock detection</h3>
+          <p>Flags Sherlock on the case so it is part of the picture rather than something you check separately.</p>
+        </div>
+        <div>
+          <h3>Status templates</h3>
+          <p>Prewritten status text for the common outcomes, so the write-up matches the score you just gave.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THE GAME LAYER — one section ============ -->
+  <section id="team">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>And then, because<br>people are competitive.</h2>
+        <p class="lede">The accuracy is what earns the install. This is the part that keeps it open:
+        a leaderboard across day, week, month and all time, achievements, and seven panel themes.</p>
+      </div>
+
+      <div class="team">
+        <div>
+          <div class="board">
+            <div class="board-row top"><span class="r">1</span><span>Wren Alcott</span><span class="v">214</span></div>
+            <div class="board-row"><span class="r">2</span><span>Idris Vale</span><span class="v">198</span></div>
+            <div class="board-row"><span class="r">3</span><span>Nour Habib</span><span class="v">173</span></div>
+            <div class="board-row"><span class="r">4</span><span>Petra Lund</span><span class="v">150</span></div>
+            <div class="board-row"><span class="r">5</span><span>Sami Okonkwo</span><span class="v">131</span></div>
+          </div>
+          <span class="synthetic">Demonstration data. Invented names, not the real board</span>
+          <div class="badges">
+            <span class="badge">First hundred</span>
+            <span class="badge">Clean sweep</span>
+            <span class="badge">Streak of ten</span>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="font-size:1.3rem;margin-bottom:12px">Seven themes</h3>
+          <p style="font-size:.95rem;color:var(--ink-soft)">The panel ships seven of them. Midnight is
+          the default; the rest are yours if the theme picker is enabled on your account.</p>
+          <div class="swatches" id="swatches" role="group" aria-label="Panel themes">
+            <button type="button" data-n="Midnight" style="--t:#0b1a3a" aria-pressed="true">
+              <span class="sr-only">Midnight theme</span></button>
+            <button type="button" data-n="Cyberpunk" style="--t:#a21caf" aria-pressed="false">
+              <span class="sr-only">Cyberpunk theme</span></button>
+            <button type="button" data-n="Matrix" style="--t:#137a3a" aria-pressed="false">
+              <span class="sr-only">Matrix theme</span></button>
+            <button type="button" data-n="Sakura" style="--t:#c2447a" aria-pressed="false">
+              <span class="sr-only">Sakura theme</span></button>
+            <button type="button" data-n="Aurora" style="--t:#12766a" aria-pressed="false">
+              <span class="sr-only">Aurora theme</span></button>
+            <button type="button" data-n="Royal" style="--t:#5b3fa8" aria-pressed="false">
+              <span class="sr-only">Royal theme</span></button>
+            <button type="button" data-n="Halloween" style="--t:#b4530f" aria-pressed="false">
+              <span class="sr-only">Halloween theme</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ACCESS ============ -->
+  <section id="access">
+    <div class="wrap access-grid">
+      <div>
+        <h2>You have to be<br><span class="s">on the list.</span></h2>
+        <p class="lede" style="margin-top:20px">The assistant runs against an allow-list. There is no
+        self-service signup, and an unapproved install produces a script that loads and then does
+        nothing, with no error to tell you why. So this comes before the install steps, not after them.</p>
+        <p class="lede">Message the maintainer with your username. That is the whole process.</p>
+        <div class="acts">
+          <a class="btn" href="mailto:odemar@cisco.com?subject=Case%20Review%20Assistant%20access%20request&amp;body=Hi%20Oday%2C%0A%0APlease%20add%20me%20to%20the%20Case%20Review%20Assistant%20allow-list.%0A%0AUsername%3A%20">
+            Request access
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
+          </a>
+        </div>
+      </div>
+      <div class="sheet">
+        <span class="reg"><i></i></span><span class="reg"><i></i></span>
+        <span class="reg"><i></i></span><span class="reg"><i></i></span>
+        <div class="sheet-head"><span class="slug">Before you install</span></div>
+        <p style="font-size:.96rem"><b>The loader is short and readable.</b> If you would rather see
+        what it does before running it, open it first; it is a small file, and it is meant to be read.</p>
+        <p style="font-size:.96rem;margin-bottom:0"><a href="/loader.user.js" style="color:var(--cyan-t);text-underline-offset:3px">Open loader.user.js</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section id="install">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2>Four steps, once.</h2>
+      </div>
+      <ol class="steps">
+        <li>
+          <span class="n">1</span>
+          <h3>Get on the allow-list</h3>
+          <p>Message <a href="mailto:odemar@cisco.com">odemar@cisco.com</a> with your username.
+          Every step below depends on this one.</p>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <h3>Install Tampermonkey</h3>
+          <p>The assistant is a userscript, so it needs a userscript manager. Tampermonkey is what the loader targets.</p>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <h3>Add the loader</h3>
+          <p><a href="/loader.user.js">Open loader.user.js</a> and Tampermonkey will offer a one-click
+          install. The loader is version 0.29.0; it keeps the assistant itself up to date from there.</p>
+        </li>
+        <li>
+          <span class="n">4</span>
+          <h3>Open a case</h3>
+          <p>The launcher appears in the corner of the case page. If it does not, you are probably not on the list yet.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ SLA COLOR GUARD ============ -->
+  <section id="sla">
+    <div class="wrap sla">
+      <div>
+        <h2>Case Status<br><span class="s">SLA Color Guard</span></h2>
+        <p class="lede" style="margin-top:20px">Unrelated to the review panel, shipped from the same
+        place because the same people wanted it: an SLA colour guard plus an MTTF histogram, drawn
+        straight onto the case page. Standalone, no allow-list, install it on its own.</p>
+        <p class="lede">Like the assistant, it installs as a small loader that keeps itself current,
+        so you install once and never chase a version again. Currently
+        <span class="sla-version">1.6.1</span>.</p>
+        <div class="acts">
+          <a class="btn btn--ghost" href="/sla.user.js">
+            Install SLA Color Guard
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><use href="#i-arrow"/></svg>
+          </a>
+        </div>
+      </div>
+      <div class="sheet">
+        <span class="reg"><i></i></span><span class="reg"><i></i></span>
+        <span class="reg"><i></i></span><span class="reg"><i></i></span>
+        <div class="sheet-head"><span class="slug">Time to failure · demonstration</span></div>
+        <div class="sla-bars">
+          <div class="sla-bar"><span>0–2 d</span><i style="background:var(--cyan);width:38%"></i></div>
+          <div class="sla-bar"><span>2–5 d</span><i style="background:var(--cyan);width:72%"></i></div>
+          <div class="sla-bar"><span>5–9 d</span><i style="background:var(--amber);width:100%"></i></div>
+          <div class="sla-bar"><span>9–14 d</span><i style="background:var(--amber);width:56%"></i></div>
+          <div class="sla-bar"><span>14 d +</span><i style="background:var(--scarlet);width:24%"></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
 
 <footer>
-  Cisco Case Review Assistant · <span class="cra-version">v0.29.0</span> · Internal tool · Made with <span class="hearts">♥</span> for faster, more accurate &amp; more fun reviews
+  <div class="wrap colo">
+    <div>
+      <h2 style="font-size:clamp(1.8rem,3.6vw,2.8rem)">Who made this.</h2>
+      <p class="lede" style="margin-top:18px">Built and maintained by Oday Emar. If something is wrong,
+      or the launcher will not appear, message me directly. It is a short list of users, so a message gets to a person
+      rather than a queue.</p>
+    </div>
+    <div>
+      <dl>
+        <dt>Maintainer</dt><dd>Oday Emar — <a href="mailto:odemar@cisco.com">odemar@cisco.com</a></dd>
+        <dt>Assistant</dt><dd><span class="cra-version">0.31.0</span> — updates itself</dd>
+        <dt>Loader</dt><dd>0.29.0 — <a href="/loader.user.js">source</a></dd>
+        <dt>SLA Guard</dt><dd><span class="sla-version">1.6.1</span> — <a href="/sla.user.js">loader</a></dd>
+        <dt>Runs on</dt><dd>The case page and the review page</dd>
+        <dt>Access</dt><dd>Allow-list, by request</dd>
+      </dl>
+    </div>
+  </div>
 </footer>
 
 <script>
-/* ---------- background drifting starfield (matches Midnight theme) ---------- */
 (function(){
-  const c = document.getElementById('stars'), x = c.getContext('2d');
-  let W,H,stars=[],shoot=null,timer=120;
-  function size(){ W=c.width=innerWidth; H=c.height=innerHeight;
-    stars = Array.from({length:Math.round(W*H/6000)},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.1+.3,ph:Math.random()*6.28,tw:Math.random()*.05+.02,base:Math.random()*.5+.15}));}
-  size(); addEventListener('resize',size);
-  (function loop(){
-    x.clearRect(0,0,W,H);
-    for(const s of stars){ s.ph+=s.tw; const a=Math.min(1,s.base+0.55*Math.abs(Math.sin(s.ph)));
-      x.globalAlpha=a; x.fillStyle='#cfe0ff'; x.beginPath(); x.arc(s.x,s.y,s.r,0,6.28); x.fill(); }
-    x.globalAlpha=1;
-    if(!shoot && --timer<=0){ const fl=Math.random()<.5; shoot={x:fl?Math.random()*W*.3:W*.7+Math.random()*W*.3,y:Math.random()*H*.4,vx:(fl?1:-1)*(5+Math.random()*4),vy:3+Math.random()*3,life:1};}
-    if(shoot){ shoot.x+=shoot.vx; shoot.y+=shoot.vy; shoot.life-=.012;
-      const tx=shoot.x-shoot.vx*5, ty=shoot.y-shoot.vy*5;
-      const g=x.createLinearGradient(shoot.x,shoot.y,tx,ty);
-      g.addColorStop(0,'rgba(255,255,255,'+Math.max(0,shoot.life)+')');
-      g.addColorStop(1,'rgba(120,170,255,0)');
-      x.strokeStyle=g; x.lineWidth=2; x.lineCap='round';
-      x.beginPath(); x.moveTo(shoot.x,shoot.y); x.lineTo(tx,ty); x.stroke();
-      if(shoot.life<=0||shoot.x<-60||shoot.x>W+60||shoot.y>H+60){shoot=null;timer=Math.round(180+Math.random()*240);}
+  "use strict";
+
+  /* ---- the authored moment: passes flood the sheet once it is seen ---- */
+  var sheet = document.getElementById("sheet");
+  if (sheet) {
+    if (!("IntersectionObserver" in window)) {
+      sheet.classList.add("inked");
+    } else {
+      var io = new IntersectionObserver(function(entries, self){
+        entries.forEach(function(en){
+          if (en.isIntersecting) { en.target.classList.add("inked"); self.unobserve(en.target); }
+        });
+      }, { threshold: .3 });
+      io.observe(sheet);
     }
-    requestAnimationFrame(loop);
-  })();
-})();
+  }
 
-/* ---------- interactive mock: theme cycling ---------- */
-const THEMES = [
-  {name:'Midnight 🌙',  v:{'--m-bg':'#0a1326','--m-text':'#e6edff','--m-dim':'#9fb2e0','--m-mut':'#5e6f9e','--m-acc':'#4f8cff','--m-acc2':'#6aa6ff','--m-surf':'rgba(120,160,255,.08)','--m-surf2':'rgba(120,160,255,.16)','--m-border':'rgba(120,160,255,.16)','--m-on':'#04102b','--m-hA':'#1b2a4d','--m-hB':'#10182f'}},
-  {name:'Cyberpunk 🌃', v:{'--m-bg':'#10032b','--m-text':'#f4e9ff','--m-dim':'#c79bff','--m-mut':'#8a6abf','--m-acc':'#f72585','--m-acc2':'#00e5ff','--m-surf':'rgba(247,37,133,.10)','--m-surf2':'rgba(0,229,255,.16)','--m-border':'rgba(247,37,133,.28)','--m-on':'#15001f','--m-hA':'#3c096c','--m-hB':'#1a0533'}},
-  {name:'Matrix 🟩',    v:{'--m-bg':'#001000','--m-text':'#b6ffc4','--m-dim':'#5fd97a','--m-mut':'#2f8c45','--m-acc':'#00ff66','--m-acc2':'#39ff14','--m-surf':'rgba(0,255,102,.08)','--m-surf2':'rgba(0,255,102,.16)','--m-border':'rgba(0,255,102,.25)','--m-on':'#001a06','--m-hA':'#053b05','--m-hB':'#011a01'}},
-  {name:'Sakura 🌸',    v:{'--m-bg':'#ffe1ef','--m-text':'#3a1f2c','--m-dim':'#7a4a5e','--m-mut':'#a8728a','--m-acc':'#e0457e','--m-acc2':'#ff7eb6','--m-surf':'rgba(58,31,44,.06)','--m-surf2':'rgba(58,31,44,.12)','--m-border':'rgba(180,80,120,.30)','--m-on':'#ffffff','--m-hA':'#ff9ec7','--m-hB':'#f47aa9'}},
-  {name:'Aurora 🌌',    v:{'--m-bg':'#02111a','--m-text':'#e3fff4','--m-dim':'#8fe3cb','--m-mut':'#4d8c80','--m-acc':'#5ef2c9','--m-acc2':'#7dd3fc','--m-surf':'rgba(94,242,201,.10)','--m-surf2':'rgba(94,242,201,.18)','--m-border':'rgba(94,242,201,.24)','--m-on':'#02111a','--m-hA':'#0f4a4a','--m-hB':'#06222e'}},
-  {name:'Royal 👑',     v:{'--m-bg':'#140a2e','--m-text':'#f6efff','--m-dim':'#d4c2ff','--m-mut':'#8a78c0','--m-acc':'#ffd24a','--m-acc2':'#c4a4ff','--m-surf':'rgba(255,210,100,.08)','--m-surf2':'rgba(196,164,255,.18)','--m-border':'rgba(255,210,100,.22)','--m-on':'#1a0e3a','--m-hA':'#4a2596','--m-hB':'#1f1145'}},
-  {name:'Halloween 🎃', v:{'--m-bg':'#1a0d02','--m-text':'#ffd9a8','--m-dim':'#e0a060','--m-mut':'#a8703a','--m-acc':'#ff7518','--m-acc2':'#9333ea','--m-surf':'rgba(255,117,24,.11)','--m-surf2':'rgba(255,117,24,.19)','--m-border':'rgba(255,117,24,.26)','--m-on':'#1a0d02','--m-hA':'#5a2e08','--m-hB':'#241204'}},
-];
-let ti = 0;
-const mock = document.getElementById('mock');
-document.getElementById('themeBtn').addEventListener('click', () => {
-  ti = (ti + 1) % THEMES.length;
-  const t = THEMES[ti];
-  for (const [k,val] of Object.entries(t.v)) mock.style.setProperty(k,val);
-  document.getElementById('themeName').textContent = 'Theme: ' + t.name + ' — click 🎨 to cycle';
-});
-
-/* ---------- expandable cards ---------- */
-document.querySelectorAll('.cr-rowcard[data-toggle]').forEach(card => {
-  card.querySelector('.cr-rowhead').addEventListener('click', () => card.classList.toggle('open'));
-});
-/* open the first card by default */
-document.querySelector('.cr-rowcard[data-toggle]').classList.add('open');
-
-/* ---------- leaderboard tabs ---------- */
-const LB = {
-  today: [['user1',9,true],['user2',7,false],['user3',5,false]],
-  week:  [['user1',38,true],['user2',31,false],['user3',27,false]],
-  month: [['user2',122,false],['user1',118,true],['user3',96,false]],
-  total: [['user1',1284,true],['user2',1190,false],['user3',970,false]],
-};
-const medals = ['🥇','🥈','🥉'];
-function renderLB(period){
-  const list = document.getElementById('lbList');
-  const rows = LB[period].slice().sort((a,b)=>b[1]-a[1]);
-  list.innerHTML = rows.map((r,i)=>`<div class="cr-lb-row${r[2]?' me':''}"><span class="cr-lb-rank">${medals[i]||i+1}</span><span class="cr-lb-user">${r[0]}${r[2]?' (you)':''}</span><span class="cr-lb-count">${r[1]}</span></div>`).join('');
-}
-document.querySelectorAll('.cr-lb-tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.cr-lb-tab').forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    renderLB(tab.dataset.period);
-  });
-});
-renderLB('week');
-
-/* ---------- confetti on the primary button ---------- */
-document.getElementById('celebrate').addEventListener('click',()=>{
-  const cv=document.createElement('canvas');
-  cv.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:9999';
-  cv.width=innerWidth;cv.height=innerHeight;document.body.appendChild(cv);
-  const cx=cv.getContext('2d'),cols=['#4f8cff','#c4a4ff','#ff7eb6','#5ef2c9','#ffd24a','#10b981'];
-  const r=document.getElementById('celebrate').getBoundingClientRect();
-  const ps=Array.from({length:140},()=>{const a=Math.random()*6.28,s=4+Math.random()*7;return{x:r.left+r.width/2,y:r.top,vx:Math.cos(a)*s,vy:Math.sin(a)*s-3,sz:4+Math.random()*6,c:cols[Math.floor(Math.random()*cols.length)],rot:Math.random()*6.28,vr:(Math.random()-.5)*.3,life:1};});
-  let f=0;(function tick(){cx.clearRect(0,0,cv.width,cv.height);f++;for(const p of ps){p.vy+=.18;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.life=Math.max(0,1-f/140);cx.save();cx.globalAlpha=p.life;cx.translate(p.x,p.y);cx.rotate(p.rot);cx.fillStyle=p.c;cx.fillRect(-p.sz/2,-p.sz/2,p.sz,p.sz*.6);cx.restore();}f<140?requestAnimationFrame(tick):cv.remove();})();
-});
-
-/* ---------- self-updating version display ----------
-   Fetches the live script version from the worker API so this page
-   never drifts from the actual cra.user.js version. Fails silently —
-   if the fetch errors, times out, or the API returns no version, the
-   hardcoded text above is left untouched. */
-(function(){
-  // No API key here on purpose. /version is ungated server-side because it
-  // returns only a content hash and a version string. The shared x-cra-key
-  // is already public (it ships in loader.user.js), so embedding it would
-  // leak nothing new — but a page that does not need a key should not carry
-  // one, or it gets copied into a page that does.
-  fetch('https://api.casereview.cc/version', {
-    signal: AbortSignal.timeout(5000)
-  })
-    .then(r => r.ok ? r.json() : null)
-    .then(data => {
-      const v = data && data.version;
-      if (!v) return;
-      const text = 'v' + v;
-      document.querySelectorAll('.cra-version').forEach(el => {
-        el.textContent = text;
+  /* ---- theme swatches ---- */
+  var group = document.getElementById("swatches");
+  if (group) {
+    group.addEventListener("click", function(e){
+      var btn = e.target.closest("button");
+      if (!btn) return;
+      group.querySelectorAll("button").forEach(function(b){
+        b.setAttribute("aria-pressed", String(b === btn));
       });
-    })
-    .catch(() => { /* leave hardcoded version text as-is */ });
+    });
+  }
+
+  /* ---- version sync. Unauthenticated by design: this page needs no key,
+         so it carries none. Writes only into .cra-version — the assistant's
+         number, which is not the loader's. Falls back silently. ---- */
+  if (window.fetch) {
+    var live = [
+      ["https://api.casereview.cc/version",     ".cra-version"],
+      ["https://api.casereview.cc/sla/version", ".sla-version"]
+    ];
+    live.forEach(function(pair){
+      fetch(pair[0])
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(meta){
+          if (meta && meta.version) {
+            document.querySelectorAll(pair[1]).forEach(function(el){
+              el.textContent = meta.version;
+            });
+          }
+        })
+        .catch(function(){});
+    });
+  }
+
+  /* ---- scroll-spy so the masthead reflects where you are ---- */
+  if ("IntersectionObserver" in window) {
+    var links = {};
+    document.querySelectorAll(".mast nav a").forEach(function(a){
+      links[a.getAttribute("href").slice(1)] = a;
+    });
+    var spy = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (!en.isIntersecting) return;
+        Object.keys(links).forEach(function(k){
+          links[k].setAttribute("aria-current", String(k === en.target.id));
+        });
+      });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    ["score","inside","does","access","install"].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) spy.observe(el);
+    });
+  }
 })();
 </script>
 </body>

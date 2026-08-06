@@ -4,70 +4,131 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
 <title>CRA Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;800&family=Archivo:wght@400;500;600;700&family=Martian+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <!-- the same paper that tears a pass on the public site tears one here -->
+    <filter id="wet" x="-14%" y="-45%" width="128%" height="190%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.016 0.06" numOctaves="4" seed="9" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="wet-type" x="-4%" y="-10%" width="108%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9 0.42" numOctaves="3" seed="4" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="1.5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <g id="i-mark">
+      <rect x="2"  y="6" width="13" height="13" fill="#0089B8" opacity=".75" style="mix-blend-mode:multiply"/>
+      <rect x="7"  y="3" width="13" height="13" fill="#F2A11A" opacity=".75" style="mix-blend-mode:multiply"/>
+      <rect x="11" y="9" width="13" height="13" fill="#D8214E" opacity=".75" style="mix-blend-mode:multiply"/>
+    </g>
+  </defs>
+</svg>
+
 <section id="login-view">
-  <form id="login-form">
-    <h1>🔴 CRA Admin</h1>
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-    <button type="submit">Sign in</button>
-    <p id="login-error" class="err" hidden></p>
+  <form id="login-form" class="marked" novalidate>
+    <span class="reg"><i></i></span><span class="reg"><i></i></span>
+    <span class="reg"><i></i></span><span class="reg"><i></i></span>
+    <h1 class="mark">
+      <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true" focusable="false"><use href="#i-mark"/></svg>
+      CRA Admin
+    </h1>
+    <p class="hint">Manages the Case Review Assistant allow-list.</p>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <button type="submit" class="primary">Sign in</button>
+    <p id="login-error" class="err" role="alert" hidden></p>
   </form>
 </section>
 
 <main id="app-view" hidden>
   <header>
-    <h1>🔴 CRA Admin</h1>
-    <div id="stats-bar"></div>
+    <h1 class="mark">
+      <svg width="22" height="22" viewBox="0 0 26 26" aria-hidden="true" focusable="false"><use href="#i-mark"/></svg>
+      CRA Admin
+    </h1>
+    <p id="stats-bar" aria-live="polite"></p>
     <button id="logout">Sign out</button>
   </header>
 
-  <nav id="tabs">
-    <button data-tab="users" class="active">Users</button>
-    <button data-tab="themes">Themes</button>
-    <button data-tab="audit">Audit</button>
+  <!-- a transient failure says so and stays put, instead of silently
+       dropping the admin back to the login form -->
+  <div id="banner" role="alert" hidden>
+    <p id="banner-text"></p>
+    <button id="banner-retry" type="button">Retry</button>
+    <button id="banner-dismiss" type="button">Dismiss</button>
+  </div>
+
+  <nav id="tabs" role="tablist" aria-label="Admin sections">
+    <button role="tab" id="tab-btn-users"  aria-selected="true"  aria-controls="tab-users"  data-tab="users">Users</button>
+    <button role="tab" id="tab-btn-themes" aria-selected="false" aria-controls="tab-themes" data-tab="themes" tabindex="-1">Themes</button>
+    <button role="tab" id="tab-btn-audit"  aria-selected="false" aria-controls="tab-audit"  data-tab="audit"  tabindex="-1">Audit</button>
   </nav>
 
-  <section id="tab-users" class="tab">
+  <section id="tab-users" class="tab" role="tabpanel" aria-labelledby="tab-btn-users" tabindex="0">
+    <h2 class="sr-only">Users</h2>
     <div class="toolbar">
+      <label for="user-search" class="sr-only">Search username</label>
       <input id="user-search" type="search" placeholder="Search username…">
-      <button id="add-user-btn">+ Add user</button>
+      <span class="spacer"></span>
+      <button id="add-user-btn" class="primary">Add user</button>
       <button id="bulk-btn">Bulk add</button>
     </div>
     <div class="table-wrap">
-    <table id="user-table">
-      <thead><tr><th>Username</th><th>Access</th><th>Rainbow</th><th>Themes</th><th>Note</th><th></th></tr></thead>
-      <tbody></tbody>
-    </table>
+      <table id="user-table">
+        <caption>Allow-list — who can use the assistant</caption>
+        <thead><tr>
+          <th scope="col">Username</th>
+          <th scope="col">Access</th>
+          <th scope="col">Rainbow</th>
+          <th scope="col">Themes</th>
+          <th scope="col">Note</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
     <div class="toolbar">
       <button id="prev-page">Previous</button>
-      <span id="page-info"></span>
+      <span id="page-info" aria-live="polite"></span>
       <button id="next-page">Next</button>
     </div>
   </section>
 
-  <section id="tab-themes" class="tab" hidden>
+  <section id="tab-themes" class="tab" role="tabpanel" aria-labelledby="tab-btn-themes" tabindex="0" hidden>
+    <h2>Themes</h2>
+    <p class="hint-strong">The default theme must be one that is enabled, and at least one theme must stay enabled.</p>
     <div class="toolbar">
       <button data-bulk="on">Enable all seasonal</button>
       <button data-bulk="off">Disable all seasonal</button>
     </div>
     <h2>Standard</h2>
-    <div id="theme-standard"></div>
+    <div id="theme-standard" class="theme-list"></div>
     <h2>Seasonal</h2>
-    <div id="theme-seasonal"></div>
+    <div id="theme-seasonal" class="theme-list"></div>
   </section>
 
-  <section id="tab-audit" class="tab" hidden>
-    <p class="hint">Refused writes. This table should stay near-empty; entries mean malformed or forged requests.</p>
+  <section id="tab-audit" class="tab" role="tabpanel" aria-labelledby="tab-btn-audit" tabindex="0" hidden>
+    <h2>Audit</h2>
+    <p class="hint-strong">Refused writes. This table should stay near-empty; entries mean malformed or forged requests.</p>
     <div class="table-wrap">
-    <table id="audit-table">
-      <thead><tr><th>When</th><th>User</th><th>Reason</th><th>Detail</th></tr></thead>
-      <tbody></tbody>
-    </table>
+      <table id="audit-table">
+        <caption>Refused writes, most recent first</caption>
+        <thead><tr>
+          <th scope="col">When</th>
+          <th scope="col">User</th>
+          <th scope="col">Reason</th>
+          <th scope="col">Detail</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </section>
 </main>
@@ -75,12 +136,19 @@
 <dialog id="user-dialog">
   <form method="dialog" id="user-form">
     <h2 id="user-dialog-title">Add user</h2>
-    <label>Username <input id="f-username" required maxlength="32"></label>
-    <label><input id="f-authorized" type="checkbox" checked> Authorized</label>
-    <label><input id="f-rainbow" type="checkbox"> Rainbow name</label>
-    <label><input id="f-themes" type="checkbox"> Theme picker</label>
-    <label>Note <input id="f-note" maxlength="500"></label>
-    <menu><button type="submit" value="cancel" formnovalidate id="f-cancel">Cancel</button><button type="submit" id="f-save" value="save">Save</button></menu>
+    <label>Username
+      <input id="f-username" required maxlength="32" autocomplete="off">
+    </label>
+    <label class="inline"><input id="f-authorized" type="checkbox" checked> Authorized — can use the assistant</label>
+    <label class="inline"><input id="f-rainbow" type="checkbox"> Rainbow name — animated name on the leaderboard</label>
+    <label class="inline"><input id="f-themes" type="checkbox"> Theme picker — may change the panel theme</label>
+    <label>Note <span class="hint">(optional, for other admins)</span>
+      <input id="f-note" maxlength="500" autocomplete="off">
+    </label>
+    <menu>
+      <button type="submit" value="cancel" formnovalidate id="f-cancel">Cancel</button>
+      <button type="submit" value="save" id="f-save" class="primary">Save</button>
+    </menu>
   </form>
 </dialog>
 
@@ -88,8 +156,12 @@
   <form method="dialog" id="bulk-form">
     <h2>Bulk add</h2>
     <p class="hint">One username per line. Existing users are left untouched.</p>
+    <label for="f-bulk" class="sr-only">Usernames, one per line</label>
     <textarea id="f-bulk" rows="12"></textarea>
-    <menu><button type="submit" value="cancel" formnovalidate id="f-bulk-cancel">Cancel</button><button type="submit" value="save" id="f-bulk-save">Add all</button></menu>
+    <menu>
+      <button type="submit" value="cancel" formnovalidate id="f-bulk-cancel">Cancel</button>
+      <button type="submit" value="save" id="f-bulk-save" class="primary">Add all</button>
+    </menu>
   </form>
 </dialog>
 

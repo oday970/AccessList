@@ -1,57 +1,232 @@
-:root {
-  --bg: #0a1326; --surf: rgba(120,160,255,0.08); --border: rgba(120,160,255,0.18);
-  --text: #e6edff; --dim: #9fb2e0; --accent: #4f8cff; --err: #ff6b6b; --ok: #4ade80;
+/* ==========================================================
+   CRA Admin — The Overlap, in its Operate register.
+   Same three inks and the same multiply, at working density:
+   pigment marks state, paper carries data. Nothing decorative
+   sits between the admin and the allow-list.
+   ========================================================== */
+:root{
+  /* Grey stock, matching the public site. */
+  --paper:#D5D5D5;
+  --paper-deep:#C6C6C6;
+  --ink:#2A2622;
+  --ink-soft:#5C5349;
+
+  --cyan:#0089B8;
+  --amber:#F2A11A;
+  --scarlet:#D8214E;
+  --ghost:#A9CBDD;
+  --on-solid:#FFFFFF;
+
+  /* Re-derived for the grey: the old cream-ground siblings drop to ~4.05
+     here and stop clearing the small-text floor. These read 5.28 / 4.84. */
+  --cyan-t:#005A73;
+  --scarlet-t:#AD1739;
+
+  --display:"Big Shoulders Stencil Display","Haettenschweiler","Arial Narrow",sans-serif;
+  --mono:"Martian Mono",ui-monospace,"Cascadia Mono",monospace;
+  --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+
+  --rule:1.5px solid var(--ink);
+  --hair:1px solid rgba(42,38,34,.22);
 }
-* { box-sizing: border-box; }
-body {
-  margin: 0; padding: 24px; background: var(--bg); color: var(--text);
-  font: 15px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif;
+
+*{box-sizing:border-box}
+
+/* #login-view and .tab both set display, which outranks the UA's
+   [hidden]{display:none} on specificity — so the login form stayed
+   on screen after signing in. Make hidden mean hidden, everywhere. */
+[hidden]{display:none!important}
+
+body{
+  margin:0;padding:0 clamp(14px,3vw,30px) 70px;
+  background:var(--paper);color:var(--ink);
+  font:400 15px/1.55 var(--body);
+  -webkit-font-smoothing:antialiased;
 }
-h1 { font-size: 20px; margin: 0; }
-h2 { font-size: 17px; margin: 16px 0 12px; }
-
-#login-view { display: grid; place-items: center; min-height: 80vh; }
-#login-form { display: grid; gap: 12px; width: min(320px, 90vw); }
-
-header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-header #stats-bar { margin-left: auto; color: var(--dim); font-size: 13px; }
-
-nav#tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
-nav#tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); padding: 8px 14px; cursor: pointer; white-space: nowrap; }
-nav#tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
-
-.toolbar { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
-input, textarea, button {
-  font: inherit; color: var(--text); background: var(--surf);
-  border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px;
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23f)' opacity='.42'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply;opacity:.3;
 }
-button { cursor: pointer; }
-button:hover { border-color: var(--accent); }
-input[type=checkbox], input[type=radio] { width: auto; accent-color: var(--accent); }
+body>*{position:relative;z-index:1}
 
-.table-wrap { width: 100%; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-th { color: var(--dim); font-weight: 600; font-size: 13px; }
-td.revoked { color: var(--dim); text-decoration: line-through; }
+/* ---- registration crosses: the same punctuation as the public site --- */
+.reg{position:absolute;width:17px;height:17px;pointer-events:none;opacity:.55}
+.reg::before,.reg::after{content:"";position:absolute;background:var(--cyan)}
+.reg::before{left:50%;top:0;width:1.2px;height:100%;transform:translateX(-50%)}
+.reg::after{top:50%;left:0;height:1.2px;width:100%;transform:translateY(-50%)}
+.reg i{position:absolute;inset:4px;border:1.2px solid var(--cyan);border-radius:50%}
+.marked{position:relative}
+.marked>.reg:nth-of-type(1){top:-8.5px;left:-8.5px}
+.marked>.reg:nth-of-type(2){top:-8.5px;right:-8.5px}
+.marked>.reg:nth-of-type(3){bottom:-8.5px;left:-8.5px}
+.marked>.reg:nth-of-type(4){bottom:-8.5px;right:-8.5px}
 
-.theme-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.theme-row .spacer { margin-left: auto; }
-.theme-row label { display: flex; align-items: center; gap: 4px; color: var(--dim); font-size: 13px; }
+h1,h2{font-family:var(--display);font-weight:800;text-transform:uppercase;
+  letter-spacing:.01em;line-height:.88;margin:0;filter:url(#wet-type)}
+h1{font-size:1.65rem}
+h2{font-size:1.35rem;margin:28px 0 13px}
+h2 .s{color:var(--scarlet)}
+h2 .c{color:var(--cyan)}
 
-dialog { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 20px; max-width: 90vw; }
-dialog::backdrop { background: rgba(0,0,0,0.6); }
-dialog form { display: grid; gap: 10px; min-width: min(380px, 88vw); }
-dialog label { display: grid; gap: 4px; font-size: 13px; color: var(--dim); }
-dialog menu { display: flex; gap: 8px; justify-content: flex-end; margin: 8px 0 0; padding: 0; }
-dialog textarea { font-family: monospace; }
+:focus-visible{outline:2.5px solid var(--scarlet);outline-offset:3px}
 
-.err { color: var(--err); }
-.ok-msg { color: var(--ok); }
-.hint { color: var(--dim); font-size: 13px; }
-@media (max-width: 640px) {
-  body { padding: 12px; }
-  th:nth-child(5), td:nth-child(5) { display: none; }
-  header { gap: 10px; }
-  header #stats-bar { margin-left: 0; width: 100%; order: 3; }
+.mark{display:inline-flex;align-items:center;gap:10px}
+.mark svg{display:block;flex:none}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ---- login -------------------------------------------------- */
+#login-view{display:grid;place-items:center;min-height:92vh}
+#login-form{
+  display:grid;gap:14px;width:min(350px,92vw);
+  border:var(--rule);padding:28px;background:var(--paper);
+}
+#login-form h1{margin-bottom:2px}
+#login-form p.hint{margin:0}
+/* field labels are mono caps everywhere else in the panel; this one was
+   inheriting body sans and reading as stray copy */
+#login-form label{font:600 10px/1.4 var(--mono);text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink-soft);margin-bottom:-7px}
+
+/* ---- shell -------------------------------------------------- */
+header{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:17px 0;border-bottom:var(--rule);
+}
+#stats-bar{
+  margin-left:auto;font:400 11px/1.5 var(--mono);
+  color:var(--ink-soft);letter-spacing:.04em;
+}
+
+/* ---- banner: a failure says so and stays put ---------------- */
+#banner{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  border:var(--rule);padding:13px 16px;margin:16px 0 0;
+  background:rgba(216,33,78,.1);
+}
+#banner p{margin:0;flex:1;min-width:210px;font-size:14px}
+
+/* ---- tabs ---------------------------------------------------- */
+nav#tabs{display:flex;gap:0;border-bottom:var(--rule);margin:18px 0 22px;overflow-x:auto}
+nav#tabs button{
+  background:none;border:0;border-bottom:4px solid transparent;
+  font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.11em;
+  color:var(--ink-soft);padding:12px 20px;cursor:pointer;white-space:nowrap;
+  margin-bottom:-1.5px;clip-path:none;
+}
+nav#tabs button:hover{color:var(--ink);transform:none;background:none}
+nav#tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--scarlet)}
+
+/* ---- controls ----------------------------------------------- */
+.toolbar{display:flex;gap:10px;align-items:center;margin:14px 0;flex-wrap:wrap}
+.toolbar .spacer{margin-left:auto}
+
+/* inputs take the same cut as buttons; the board draws them as one family */
+input,textarea,select{
+  font:400 14px/1.4 var(--body);color:var(--ink);background:var(--paper);
+  border:1.5px solid rgba(42,38,34,.4);padding:9px 11px;
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+}
+input[type=checkbox],input[type=radio]{clip-path:none}
+input:focus,textarea:focus,select:focus{border-color:var(--cyan-t)}
+input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--cyan)}
+textarea{font-family:var(--mono);font-size:12.5px}
+
+button{
+  font:700 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.09em;
+  color:var(--ink);background:transparent;border:1.5px solid var(--ink);
+  padding:10px 15px;cursor:pointer;
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  transition:transform .14s cubic-bezier(.2,.8,.3,1),background .14s,color .14s;
+}
+button:hover:not(:disabled){transform:translate(-1px,-1px);background:var(--paper-deep)}
+button:disabled{opacity:.38;cursor:not-allowed}
+button.primary{background:var(--scarlet-t);border-color:var(--scarlet-t);color:var(--on-solid)}
+button.primary:hover:not(:disabled){background:var(--scarlet-t);filter:saturate(1.15)}
+button.danger{border-color:var(--scarlet);color:var(--scarlet-t)}
+button.danger:hover:not(:disabled){background:var(--scarlet-t);color:var(--on-solid)}
+
+/* ---- tables -------------------------------------------------- */
+.table-wrap{width:100%;overflow-x:auto;border:var(--rule)}
+table{width:100%;border-collapse:collapse}
+caption{
+  text-align:left;padding:11px 13px;border-bottom:var(--hair);
+  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);
+}
+th,td{text-align:left;padding:10px 13px;border-bottom:var(--hair)}
+tbody tr:last-child td{border-bottom:0}
+th{
+  font:600 10px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.1em;
+  color:var(--ink-soft);background:var(--paper-deep);
+}
+tbody tr:hover td{background:rgba(0,137,184,.1)}
+td.revoked{color:var(--ink-soft);text-decoration:line-through}
+td.acts{white-space:nowrap}
+td.acts button{padding:7px 11px;font-size:10px}
+
+/* Status is a laid pass, not a coloured box: real pigment on paper with
+   a torn edge, and always labelled so colour is never the only signal. */
+.pill{
+  position:relative;display:inline-block;padding:4px 10px;
+  font:600 9.5px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.09em;
+  color:var(--ink);isolation:isolate;
+}
+.pill::before{
+  content:"";position:absolute;inset:-2px -4px;z-index:-1;
+  background:var(--c);opacity:.6;
+  mix-blend-mode:multiply;filter:url(#wet);
+}
+.pill.on{--c:var(--cyan)}
+.pill.off{--c:var(--scarlet)}
+.flag{font:600 12px/1 var(--mono);color:var(--cyan-t)}
+.flag.no{color:rgba(42,38,34,.42)}
+
+#page-info{font:400 11px/1 var(--mono);color:var(--ink-soft)}
+
+.state-row td{text-align:center;padding:34px 13px;color:var(--ink-soft)}
+.state-row b{display:block;font-family:var(--display);font-weight:800;
+  font-size:1.3rem;text-transform:uppercase;color:var(--ink);margin-bottom:5px}
+.state-row span{font-size:13px}
+
+/* ---- themes -------------------------------------------------- */
+.theme-list{border:var(--rule)}
+.theme-row{
+  display:flex;align-items:center;gap:12px;padding:10px 14px;
+  border-bottom:var(--hair);flex-wrap:wrap;
+}
+.theme-row:last-child{border-bottom:0}
+.theme-row .spacer{margin-left:auto}
+.theme-row label{display:flex;align-items:center;gap:6px;
+  font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft)}
+.theme-row .nm{font-weight:500}
+
+/* ---- dialogs ------------------------------------------------- */
+dialog{
+  background:var(--paper);color:var(--ink);border:var(--rule);
+  padding:26px;max-width:92vw;
+}
+dialog::backdrop{background:rgba(42,38,34,.55)}
+dialog form{display:grid;gap:13px;min-width:min(400px,86vw)}
+dialog h2{margin:0 0 4px}
+dialog label{display:grid;gap:5px;
+  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft)}
+dialog label.inline{display:flex;align-items:center;gap:9px;
+  text-transform:none;letter-spacing:0;font:400 13.5px/1.4 var(--body);color:var(--ink)}
+dialog menu{display:flex;gap:9px;justify-content:flex-end;margin:10px 0 0;padding:0}
+
+/* ---- messages ------------------------------------------------ */
+.err{color:var(--scarlet-t);font-size:13.5px;margin:0}
+.hint{font-size:12.5px;color:var(--ink-soft)}
+.hint-strong{font-size:12.5px;border:var(--hair);padding:11px 13px;margin:0 0 14px}
+
+@media (max-width:660px){
+  body{padding-inline:12px}
+  header{gap:11px}
+  #stats-bar{margin-left:0;width:100%;order:3}
+  /* the Note column used to be display:none here, which silently dropped
+     admin-authored data on phones. The wrapper already scrolls, so the
+     column stays and the table scrolls to reach it. */
+  #user-table{min-width:640px}
 }
