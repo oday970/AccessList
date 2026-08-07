@@ -36,7 +36,14 @@
   --scarlet:#D8214E;
   --mark:#D8214E;
   --ghost:#A9CBDD;
+  /* Text on a `-t` fill. This one has to follow the GROUND, not the ink:
+     the -t siblings darken on paper and lighten on midnight, so the type
+     that sits on them has to travel the opposite way or it inverts into
+     an unreadable pairing. */
   --on-solid:#FFFFFF;
+  /* Text on --mark. Separate token because --mark is the one fill that
+     does NOT move between grounds, so its type must not move either. */
+  --on-mark:#FFFFFF;
 
   /* Pass inks are pigment, measured for the stock, not for text. On this
      grey, cyan is 2.71:1, scarlet 3.37:1 and amber 1.45:1, so small text
@@ -112,6 +119,12 @@
     --scarlet-t:#FF6E8A;  /*  6.76:1 */
     --amber-t:#F5C267;    /* 11.02:1 */
     --ghost:#3A5A70;
+    /* The trap this ground sets. --scarlet-t is both a type colour and a
+       button fill, and those two jobs pull opposite ways when the ground
+       flips: as type it must lighten, as a fill behind white it must stay
+       dark. Lightening it and leaving --on-solid white put white on
+       #FF6E8A at 2.68:1. The fill is right; the type on it has to invert. */
+    --on-solid:#14161C;
 
     --pass-blend:screen;
     --fibre-blend:screen;
@@ -369,7 +382,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 .panel-row b{font-weight:600}
 .launcher{
   position:absolute;right:14px;bottom:14px;width:42px;height:42px;border-radius:50%;
-  background:var(--mark);display:grid;place-items:center;color:var(--on-solid);
+  background:var(--mark);display:grid;place-items:center;color:var(--on-mark);
   font:800 15px/1 var(--display);box-shadow:0 3px 12px var(--lift);
 }
 

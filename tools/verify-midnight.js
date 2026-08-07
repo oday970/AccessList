@@ -56,4 +56,44 @@ for (const [n, a, b] of pairs) {
   console.log(`${n} -> ${c}   luminance ${L(c).toFixed(4)}${L(c) < 0.02 ? '   <- collapsed to black' : ''}`);
 }
 
+/* Solid fills, both grounds.
+
+   This section exists because of a real bug. --scarlet-t is documented as
+   "scarlet for type AND solid fills", and those two jobs travel in opposite
+   directions when the ground flips: as a type colour it has to lighten on
+   midnight, as a fill behind white text it has to stay dark. Lightening it
+   and leaving --on-solid white shipped white on #FF6E8A at 2.68:1.
+
+   Checking type tokens against the ground would never have caught it --
+   the failing pair is fill vs its own label, and neither is the ground. */
+console.log('\n=== Solid fills vs the type sitting on them ===');
+const fills = {
+  light: {
+    ground: '#D5D5D5',
+    pairs: [
+      ['.btn                ', '#AD1739', '#FFFFFF'],   // --scarlet-t / --on-solid
+      ['.btn--ghost:hover   ', '#005A73', '#FFFFFF'],   // --cyan-t    / --on-solid
+      ['.launcher           ', '#D8214E', '#FFFFFF']    // --mark      / --on-mark
+    ]
+  },
+  midnight: {
+    ground: '#14161C',
+    pairs: [
+      ['.btn                ', '#FF6E8A', '#14161C'],
+      ['.btn--ghost:hover   ', '#4FC6E8', '#14161C'],
+      ['.launcher           ', '#D8214E', '#FFFFFF']
+    ]
+  }
+};
+for (const [scheme, { pairs }] of Object.entries(fills)) {
+  console.log(` ${scheme}:`);
+  for (const [name, bg, fg] of pairs) {
+    const r = ratio(bg, fg);
+    const ok = r >= 4.5;
+    if (!ok) fail++;
+    console.log(`   ${name} ${fg} on ${bg}  ${f2(r).padStart(6)}:1  ${ok ? 'PASS' : '*** FAIL AA ***'}`);
+  }
+}
+
 console.log('\n' + (fail ? `${fail} PROBLEM(S)` : 'All checks passed.'));
+process.exit(fail ? 1 : 0);
