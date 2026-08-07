@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Case Review Assistant - every case, scored before you read it</title>
 <meta name="description" content="A panel that opens inside the case page, scores the case against your team's five review criteria, and fills the review template. Access is by allow-list.">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;700;800&family=Archivo:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -26,6 +26,10 @@
   --paper-deep:#C6C6C6;
   --ink:#2A2622;
   --ink-soft:#5C5349;
+  /* --ink as bare channels, so the hairline rules that separate this page
+     can be struck in the ground's own ink rather than in a fixed dark that
+     would vanish the moment the stock changes. */
+  --ink-rgb:42,38,34;
 
   --cyan:#0089B8;
   --amber:#F2A11A;
@@ -47,12 +51,84 @@
      letting them silt toward black. */
   --pass-alpha:.52;
 
+  /* The blend IS the world, so it is a token rather than a constant: on
+     paper the passes multiply, because pigment subtracts light. See the
+     dark branch at the foot of this block for what happens when there is
+     no paper to subtract from. */
+  --pass-blend:multiply;
+  --fibre-blend:multiply;
+  --fibre-alpha:.14;
+
+  --panel-tint:rgba(0,137,184,.07);
+  --lift:rgba(42,38,34,.28);
+
   --display:"Big Shoulders Stencil Display","Haettenschweiler","Arial Narrow",sans-serif;
   --mono:"Martian Mono",ui-monospace,"Cascadia Mono",monospace;
   --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
 
   --gut:clamp(18px,4vw,44px);
   --rule:1.5px solid var(--ink);
+}
+
+/* ==========================================================
+   MIDNIGHT - the same three inks, no longer on paper.
+
+   multiply cannot come here. It only ever darkens, so on a
+   dark ground every pass silts to black and the computed
+   secondaries - the violet and the orange this whole system
+   is built to produce - stop existing. Keeping multiply would
+   keep the letter of the rule and lose the thing the rule is
+   for.
+
+   So the passes screen instead. The load-bearing rule stands
+   exactly as written - mixed colours are still computed,
+   never chosen - but it is now inverted: crossings get
+   BRIGHTER, and the metaphor moves from pigment subtracting
+   light on paper to light transmitted through gels. Same
+   inks, same crossings, same arithmetic run the other way.
+
+     cyan  x scarlet -> pale violet
+     amber x scarlet -> warm gold-white
+     cyan  x amber   -> pale peach
+
+   The one real inversion: on paper, amber never sets type at
+   any size - it fails even the 3:1 large-text floor. Here it
+   is the STRONGEST of the three at 11.02:1. The rule was
+   never about amber; it was about amber on that ground.
+   ========================================================== */
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#14161C;
+    --paper-deep:#1C1F27;
+    --ink:#E8E4DC;        /* 14.26:1 */
+    --ink-soft:#A8A29A;   /*  7.15:1 */
+    --ink-rgb:232,228,220;
+
+    /* Pass inks are unchanged - they are the world, and the world
+       did not move. Only their type siblings flip: on paper they
+       were darkened to survive a light ground, here they are
+       lightened to survive a dark one. */
+    --cyan-t:#4FC6E8;     /*  9.11:1 */
+    --scarlet-t:#FF6E8A;  /*  6.76:1 */
+    --amber-t:#F5C267;    /* 11.02:1 */
+    --ghost:#3A5A70;
+
+    --pass-blend:screen;
+    --fibre-blend:screen;
+    /* The fibre is subtracted light on paper and emitted grain here,
+       so it has to come down or it reads as a dirty screen rather
+       than as stock. */
+    --fibre-alpha:.07;
+    /* Screen on a near-black ground lands softer than multiply on
+       grey at the same alpha, so the passes carry a little more
+       ink to hold the same presence. */
+    --pass-alpha:.6;
+
+    --panel-tint:rgba(0,137,184,.14);
+    /* Not a shadow. Nothing casts a dark shadow on midnight - the
+       launcher blooms in its own colour instead. */
+    --lift:rgba(216,33,78,.42);
+  }
 }
 
 *{box-sizing:border-box}
@@ -72,7 +148,7 @@ body{
 body::before{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23f)' opacity='.42'/%3E%3C/svg%3E");
-  mix-blend-mode:multiply;opacity:.14;
+  mix-blend-mode:var(--fibre-blend);opacity:var(--fibre-alpha);
 }
 main,header,footer{position:relative;z-index:1}
 
@@ -148,7 +224,7 @@ header.mast{border-bottom:var(--rule);background:var(--paper)}
 
 .sheet-head{
   display:flex;justify-content:space-between;align-items:baseline;gap:14px;
-  flex-wrap:wrap;border-bottom:1px solid rgba(42,38,34,.22);padding-bottom:11px;margin-bottom:22px;
+  flex-wrap:wrap;border-bottom:1px solid rgba(var(--ink-rgb),.22);padding-bottom:11px;margin-bottom:22px;
 }
 .slug{font:400 10.5px/1.5 var(--mono);text-transform:uppercase;letter-spacing:.13em;color:var(--ink-soft)}
 
@@ -181,7 +257,7 @@ h1 .l{display:block}
 .swath{
   position:absolute;left:0;
   top:-9px;height:calc(100% + 18px);
-  mix-blend-mode:multiply;
+  mix-blend-mode:var(--pass-blend);
   filter:url(#wet);
 }
 .swath::before{
@@ -197,7 +273,7 @@ h1 .l{display:block}
 .ghostpass{
   position:absolute;left:0;
   top:-9px;height:calc(100% + 18px);
-  background:var(--ghost);opacity:.5;mix-blend-mode:multiply;filter:url(#wet);
+  background:var(--ghost);opacity:.5;mix-blend-mode:var(--pass-blend);filter:url(#wet);
 }
 
 /* the authored moment: passes flood the sheet, in sequence */
@@ -224,7 +300,7 @@ h1 .l{display:block}
 .stamp span{font:600 9.5px/1 var(--mono);text-transform:uppercase;letter-spacing:.16em;margin-top:5px}
 
 .verdict{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:24px;
-  border-top:1px solid rgba(42,38,34,.22);padding-top:20px}
+  border-top:1px solid rgba(var(--ink-rgb),.22);padding-top:20px}
 .verdict p{margin:0;font-size:.95rem;max-width:40ch;color:var(--ink-soft)}
 .verdict b{color:var(--scarlet-t);font-weight:600}
 
@@ -239,13 +315,13 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
    mistake rather than as overprint across a divider. */
 .crit{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;
   border:var(--rule);overflow:hidden}
-.crit>div{padding:24px;border-right:1px solid rgba(42,38,34,.2)}
+.crit>div{padding:24px;border-right:1px solid rgba(var(--ink-rgb),.2)}
 .crit>div:last-child{border-right:0}
 /* two across, not one: at 1-up the chips have no neighbour to cross and
    the mechanism collapses into five flat swatches */
 @media (max-width:1000px){
   .crit{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .crit>div{border-bottom:1px solid rgba(42,38,34,.2)}
+  .crit>div{border-bottom:1px solid rgba(var(--ink-rgb),.2)}
   .crit>div:nth-child(2n){border-right:0}
   .crit>div:nth-last-child(-n+1){border-bottom:0}
 }
@@ -257,7 +333,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
   display:block;height:13px;margin-bottom:16px;position:relative;
   width:calc(100% + 60px);margin-left:-30px;
   opacity:var(--pass-alpha);
-  mix-blend-mode:multiply;filter:url(#wet);
+  mix-blend-mode:var(--pass-blend);filter:url(#wet);
 }
 /* cell padding is 24px, so a -24px pull only reaches the cell edge and the
    chips meet without crossing. -36px puts 12px of each chip into its
@@ -268,13 +344,13 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 .crit h3{margin-bottom:9px}
 .crit .pts{font:600 11px/1 var(--mono);color:var(--ink-soft);letter-spacing:.06em;display:block;margin-bottom:14px}
 .crit p{font-size:.94rem;line-height:1.55;margin:0;color:var(--ink-soft)}
-.crit .rule{margin-top:13px;font:400 11px/1.5 var(--mono);color:var(--ink);border-top:1px solid rgba(42,38,34,.2);padding-top:11px}
+.crit .rule{margin-top:13px;font:400 11px/1.5 var(--mono);color:var(--ink);border-top:1px solid rgba(var(--ink-rgb),.2);padding-top:11px}
 
 /* ---- the panel in situ ------------------------------------- */
 .situ{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.25fr);gap:clamp(28px,4vw,56px);align-items:center}
 @media (max-width:940px){.situ{grid-template-columns:minmax(0,1fr)}}
 .browser{border:var(--rule);background:var(--paper);position:relative;min-width:0}
-.browser-bar{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid rgba(42,38,34,.24)}
+.browser-bar{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid rgba(var(--ink-rgb),.24)}
 /* min-width:0 or the nowrap URL sets this flex item's floor and drags the
    whole page wider than the phone viewport */
 .browser-bar span{font:400 10px/1 var(--mono);color:var(--ink-soft);letter-spacing:.04em;
@@ -282,19 +358,19 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 .dot{width:8px;height:8px;border-radius:50%;flex:none}
 .browser-body{display:grid;grid-template-columns:minmax(0,1fr) 172px;min-height:270px}
 @media (max-width:560px){.browser-body{grid-template-columns:minmax(0,1fr) 132px}}
-.host{padding:17px;border-right:1px solid rgba(42,38,34,.2);min-width:0}
+.host{padding:17px;border-right:1px solid rgba(var(--ink-rgb),.2);min-width:0}
 .host-line{height:8px;background:var(--paper-deep);margin-bottom:9px}
 .host-line.s{width:62%}
 .host-line.m{width:84%}
 .host-line.t{width:38%;background:var(--ghost);opacity:.7}
-.panel{padding:14px 13px;background:rgba(14,136,180,.07)}
+.panel{padding:14px 13px;background:var(--panel-tint)}
 .panel h4{font:800 15px/1 var(--display);text-transform:uppercase;margin:0 0 12px;letter-spacing:.02em}
 .panel-row{display:flex;justify-content:space-between;gap:8px;font:400 10px/1.7 var(--mono)}
 .panel-row b{font-weight:600}
 .launcher{
   position:absolute;right:14px;bottom:14px;width:42px;height:42px;border-radius:50%;
   background:var(--mark);display:grid;place-items:center;color:var(--on-solid);
-  font:800 15px/1 var(--display);box-shadow:0 3px 12px rgba(42,38,34,.28);
+  font:800 15px/1 var(--display);box-shadow:0 3px 12px var(--lift);
 }
 
 /* ---- capability list --------------------------------------- */
@@ -311,7 +387,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 .does>div::before{
   content:"";position:absolute;top:0;left:0;height:9px;
   background:var(--c);opacity:var(--pass-alpha);
-  mix-blend-mode:multiply;filter:url(#wet);
+  mix-blend-mode:var(--pass-blend);filter:url(#wet);
 }
 .does>div:nth-child(1)::before{--c:var(--amber);width:100%}
 .does>div:nth-child(2)::before{--c:var(--scarlet);width:64%}
@@ -327,7 +403,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 @media (max-width:900px){.team{grid-template-columns:1fr}}
 .board{border:var(--rule)}
 .board-row{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;
-  padding:11px 15px;border-bottom:1px solid rgba(42,38,34,.16);font-size:.95rem}
+  padding:11px 15px;border-bottom:1px solid rgba(var(--ink-rgb),.16);font-size:.95rem}
 .board-row:last-child{border-bottom:0}
 .board-row .r{font:600 12px/1 var(--mono);color:var(--ink-soft)}
 .board-row .v{font:600 12px/1 var(--mono)}
@@ -345,7 +421,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
    is doing the work */
 .swatches{display:flex;gap:0;margin-top:22px;border:var(--rule)}
 .swatches button{
-  flex:1;border:0;border-right:1px solid rgba(42,38,34,.2);cursor:pointer;
+  flex:1;border:0;border-right:1px solid rgba(var(--ink-rgb),.2);cursor:pointer;
   position:relative;padding:0 0 26px;background:transparent;min-width:0;
 }
 .swatches button:last-child{border-right:0}
@@ -363,7 +439,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
 @media (max-width:900px){.access-grid{grid-template-columns:1fr}}
 
 /* ---- steps ------------------------------------------------- */
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:1px;background:rgba(42,38,34,.2);border:var(--rule);margin:0;padding:0}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:1px;background:rgba(var(--ink-rgb),.2);border:var(--rule);margin:0;padding:0}
 .steps>li{background:var(--paper);padding:26px 24px;list-style:none}
 .steps .n{
   display:inline-grid;place-items:center;width:30px;height:30px;margin-bottom:15px;
@@ -378,7 +454,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
    colour, cells painted back in --paper - so the two sections read
    as one system rather than two. Cards stretch to equal height so
    the buttons sit on a shared baseline whatever the copy length. */
-.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1px;background:rgba(42,38,34,.2);border:var(--rule)}
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1px;background:rgba(var(--ink-rgb),.2);border:var(--rule)}
 .dl-card{background:var(--paper);padding:clamp(24px,3vw,32px);display:flex;flex-direction:column}
 .dl-card h3{font-size:1.42rem;line-height:1.1;margin:0}
 .dl-ver{display:block;font:400 10.5px/1.5 var(--mono);text-transform:uppercase;letter-spacing:.13em;color:var(--ink-soft);margin-top:9px}
@@ -387,7 +463,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
    tools, so it gets its own line rather than being buried in prose. */
 .dl-gate{
   display:flex;align-items:flex-start;gap:9px;margin:20px 0 0;padding-top:16px;
-  border-top:1px solid rgba(42,38,34,.22);font-size:.9rem;line-height:1.45;
+  border-top:1px solid rgba(var(--ink-rgb),.22);font-size:.9rem;line-height:1.45;
 }
 .dl-gate svg{flex:none;margin-top:2px}
 .dl-gate b{font-weight:700;color:var(--ink)}
@@ -401,7 +477,7 @@ section{padding:clamp(52px,7.5vw,104px) 0;border-top:var(--rule)}
   font:400 10.5px/1 var(--mono);color:var(--ink-soft)}
 .sla-bar+.sla-bar{margin-top:-7px}
 .sla-bar i{height:30px;display:block;opacity:var(--pass-alpha);
-  mix-blend-mode:multiply;filter:url(#wet)}
+  mix-blend-mode:var(--pass-blend);filter:url(#wet)}
 
 /* ---- colophon ---------------------------------------------- */
 footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
@@ -453,9 +529,9 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
   <div class="wrap mast-in">
     <a class="mark" href="#top">
       <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" focusable="false">
-        <rect x="2"  y="6" width="13" height="13" fill="#0089B8" opacity=".75" style="mix-blend-mode:multiply"/>
-        <rect x="7"  y="3" width="13" height="13" fill="#F2A11A" opacity=".75" style="mix-blend-mode:multiply"/>
-        <rect x="11" y="9" width="13" height="13" fill="#D8214E" opacity=".75" style="mix-blend-mode:multiply"/>
+        <rect x="2"  y="6" width="13" height="13" fill="#0089B8" opacity=".75" style="mix-blend-mode:var(--pass-blend)"/>
+        <rect x="7"  y="3" width="13" height="13" fill="#F2A11A" opacity=".75" style="mix-blend-mode:var(--pass-blend)"/>
+        <rect x="11" y="9" width="13" height="13" fill="#D8214E" opacity=".75" style="mix-blend-mode:var(--pass-blend)"/>
       </svg>
       Case&nbsp;Review&nbsp;Assistant
     </a>
@@ -643,7 +719,7 @@ footer{border-top:var(--rule);padding:clamp(44px,6vw,76px) 0 60px}
             <div class="panel-row"><span>Sentmt</span><b>20</b></div>
             <div class="panel-row"><span>Activity</span><b>20</b></div>
             <div class="panel-row"><span>Age</span><b>15</b></div>
-            <div class="panel-row" style="margin-top:11px;border-top:1px solid rgba(42,38,34,.3);padding-top:9px">
+            <div class="panel-row" style="margin-top:11px;border-top:1px solid rgba(var(--ink-rgb),.3);padding-top:9px">
               <span>Score</span><b>88</b>
             </div>
           </div>
