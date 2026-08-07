@@ -9,7 +9,10 @@
    ========================================================== */
 :root{
   /* --- THEMES.midnight.tokens, verbatim --- */
-  --bg:#0a1326;
+  /* --bg and --grad are the one departure from the theme, matching the
+     public site: the navy is taken down to near-black so a deep-space
+     field has somewhere to sit. Every other token here is the panel's. */
+  --bg:#070b18;
   --surf:rgba(120,160,255,0.08);
   --surf2:rgba(120,160,255,0.16);
   --border:rgba(120,160,255,0.16);
@@ -23,7 +26,7 @@
   --glow:rgba(79,140,255,0.4);
   --on-accent:#04102b;
 
-  --grad:linear-gradient(160deg,#0a1326 0%,#0d1b3a 45%,#10142e 100%);
+  --grad:linear-gradient(160deg,#05060f 0%,#080a1e 45%,#06060f 100%);
   --head-a:#1b2a4d;
   --head-b:#10182f;
 
@@ -74,9 +77,30 @@ body{
    leaves this tab open for a shift while reading tables; a starfield
    twinkling behind a column of usernames is a distraction that costs
    attention and battery for no information. Same sky, holding still. */
+/* The nebula field, in the Operate register: the site paints its clouds on
+   a canvas and randomises them per load; this one is five fixed washes in
+   the same palette, because an admin who reloads forty times a shift does
+   not want a different sky each time.
+
+   The alphas are not taste. The site's painter measures its field and
+   clamps it; these are fixed, so the equivalent guarantee is arithmetic:
+   stacked ALL FIVE on one pixel they compute rgb(30,25,60), luminance
+   .0129, which is under the same .013 ceiling -- and still clears 4.5:1
+   for --accent through a card's --surf glass. They cannot in fact all
+   overlap, so the real ground is darker than the number that was proved.
+
+   Each stop fades to its OWN colour at zero alpha rather than to
+   `transparent`, which interpolates through transparent black and leaves
+   a grey bloom around every wash. */
 body::before{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:var(--grad);
+  background:
+    radial-gradient(58% 46% at 14% 16%, rgba(92,44,150,.073),  rgba(92,44,150,0)  70%),
+    radial-gradient(54% 42% at 84% 27%, rgba(44,58,150,.073),  rgba(44,58,150,0)  70%),
+    radial-gradient(48% 40% at 70% 79%, rgba(132,42,108,.066), rgba(132,42,108,0) 70%),
+    radial-gradient(52% 44% at 22% 74%, rgba(34,92,146,.066),  rgba(34,92,146,0)  70%),
+    radial-gradient(40% 32% at 52% 46%, rgba(150,74,116,.046), rgba(150,74,116,0) 70%),
+    var(--grad);
 }
 body::after{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;

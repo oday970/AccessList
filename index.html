@@ -29,7 +29,10 @@
    ========================================================== */
 :root{
   /* --- straight from THEMES.midnight.tokens --- */
-  --bg:#0a1326;
+  /* --bg and --grad are the ONE departure: the theme's navy is taken down
+     to near-black so a deep-space field has somewhere to sit. Every other
+     token below is the panel's, untouched. */
+  --bg:#070b18;
   --surf:rgba(120,160,255,0.08);
   --surf2:rgba(120,160,255,0.16);
   --border:rgba(120,160,255,0.16);
@@ -43,8 +46,11 @@
   --glow:rgba(79,140,255,0.4);
   --on-accent:#04102b;
 
-  /* THEMES.midnight.grad and .headA/.headB */
-  --grad:linear-gradient(160deg,#0a1326 0%,#0d1b3a 45%,#10142e 100%);
+  /* Deep space: near-black navy into indigo, on the theme's 160deg axis.
+     This is the floor the nebulae are painted onto, and it is deliberately
+     darker than the panel's own gradient (luminance .0056 against .0117)
+     so there is room to put colour above it without spending contrast. */
+  --grad:linear-gradient(160deg,#05060f 0%,#080a1e 45%,#06060f 100%);
   --head-a:#1b2a4d;
   --head-b:#10182f;
 
@@ -102,11 +108,19 @@ body{
   position:fixed;inset:0;z-index:0;pointer-events:none;
   background:var(--grad);
 }
-#stars{
+/* The nebula field. Painted once per load at a sixth of the viewport and
+   stretched back up -- nebulae are soft, so the browser's own upscaling
+   IS the blur, and it costs a 1/36th-size buffer instead of a full-screen
+   one. Sits under the stars and over the ground. */
+#nebula{
   position:fixed;inset:0;z-index:1;pointer-events:none;
   width:100%;height:100%;
 }
-header,main,footer{position:relative;z-index:2}
+#stars{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  width:100%;height:100%;
+}
+header,main,footer{position:relative;z-index:3}
 
 .wrap{width:100%;max-width:var(--wrap);margin-inline:auto;padding-inline:var(--gut)}
 
@@ -466,6 +480,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
 -->
 
 <div id="sky" aria-hidden="true"></div>
+<canvas id="nebula" aria-hidden="true"></canvas>
 <canvas id="stars" aria-hidden="true"></canvas>
 
 <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
@@ -936,6 +951,158 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
   "use strict";
 
   var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ============================================================
+     THE NEBULA FIELD
+
+     Randomised per load, within a fixed palette: near-black navy and
+     indigo carry the ground, and the clouds are drawn from deep blue,
+     indigo, violet, purple, magenta and — occasionally — dusty pink.
+     Weighted so indigo and violet dominate and pink is rare. Hue is
+     never allowed outside 195-346deg, which is what keeps green, yellow
+     and orange off the page by construction rather than by taste.
+
+     Saturation stays moderate-to-high and lightness stays very low, so
+     the colour reads as pigment in the dark rather than as a glow.
+
+     WHY THIS CAN BE COLOURFUL AND STILL DARK. Relative luminance is 71%
+     green, 21% red and only 7% blue. Violet, indigo and magenta are
+     almost entirely blue and red, so they cost very little of the
+     contrast budget no matter how saturated they get. That is the whole
+     trick, and it is also why the forbidden hues are forbidden: green,
+     yellow and orange would spend the budget immediately.
+
+     THE CEILING. Randomness and a contrast guarantee do not mix: a bad
+     draw could stack three clouds in one place and lift the ground out
+     from under the text. --accent (#4f8cff), the weakest thing that has
+     to stay readable at 4.5:1, tolerates a background luminance of
+     0.0225 -- but cards lay --surf over the field, which lightens it
+     again, so the raw field is held to 0.013 to leave that room.
+
+     The field is measured after painting and, if its brightest pixel is
+     over CEIL, every alpha is scaled down until it is not. The search is
+     exact rather than a single guessed factor: luminance is not linear
+     in alpha, and an approximation here would leave the guarantee not
+     quite holding. So the palette below is pushed as hard as it can be
+     and the clamp decides what actually survives -- the field ends up as
+     vivid as the contrast budget allows, and never more.
+     ============================================================ */
+  var CEIL = 0.013;
+
+  function paintNebula(){
+    var c = document.getElementById("nebula");
+    if (!c || !c.getContext) return;
+
+    // a sixth of the viewport: the upscale is the blur
+    var w = Math.max(8, Math.round(c.clientWidth / 6));
+    var h = Math.max(8, Math.round(c.clientHeight / 6));
+    c.width = w; c.height = h;
+
+    var x = c.getContext("2d");
+    var rnd = function(a, b){ return a + Math.random() * (b - a); };
+
+    // [hueLow, hueHigh, weight] -- no band strays outside 195-346
+    var BANDS = [
+      [196, 212, 1.0],   // cyan-blue
+      [220, 244, 3.0],   // deep blue into indigo
+      [244, 272, 3.2],   // indigo into violet
+      [272, 292, 2.2],   // purple
+      [300, 322, 1.4],   // magenta
+      [330, 346, 0.7]    // dusty pink, occasional
+    ];
+    var total = 0, i;
+    for (i = 0; i < BANDS.length; i++) total += BANDS[i][2];
+    function hue(){
+      var r = Math.random() * total;
+      for (var j = 0; j < BANDS.length; j++) {
+        r -= BANDS[j][2];
+        if (r <= 0) return rnd(BANDS[j][0], BANDS[j][1]);
+      }
+      return rnd(244, 272);
+    }
+
+    x.clearRect(0, 0, w, h);
+    // additive, so overlapping clouds bloom into each other the way real
+    // emission nebulae do rather than flatly covering one another
+    x.globalCompositeOperation = "lighter";
+
+    var span = Math.max(w, h);
+    var count = Math.round(rnd(7, 12));
+    for (i = 0; i < count; i++) {
+      var cx = rnd(-0.1, 1.1) * w;
+      var cy = rnd(-0.1, 1.1) * h;
+      var r  = rnd(0.20, 0.52) * span;
+      var hu = hue();
+      var sa = rnd(72, 96);          // high: these hues cost little light
+      var li = rnd(16, 34);          // still low, and the clamp polices it
+      var al = rnd(0.42, 0.78);
+
+      var g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0,   "hsla(" + hu + "," + sa + "%," + li + "%," + al + ")");
+      g.addColorStop(0.45,"hsla(" + hu + "," + sa + "%," + (li * 0.72) + "%," + (al * 0.42) + ")");
+      g.addColorStop(1,   "hsla(" + hu + "," + sa + "%," + (li * 0.5) + "%,0)");
+      x.fillStyle = g;
+      x.fillRect(0, 0, w, h);
+    }
+
+    x.globalCompositeOperation = "source-over";
+
+    /* Measure, then clamp. The buffer is 1/36th of the viewport, so this
+       whole pass is a few thousand pixels and runs once. */
+    var img, d;
+    try { img = x.getImageData(0, 0, w, h); d = img.data; }
+    catch (e) { return; }   // never let a canvas restriction break the page
+
+    // the brightest thing the ground can be under the field
+    var BR = 8 / 255, BG = 10 / 255, BB = 30 / 255;   // #080a1e
+    function lin(v){ return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+
+    var n = d.length >> 2;
+    // keep the drawn alphas: each trial scales from these, not from the
+    // previous trial's output
+    var a0 = new Float32Array(n);
+    for (var k0 = 0; k0 < n; k0++) a0[k0] = d[(k0 << 2) + 3] / 255;
+
+    // every loop counter in here is function-local ON PURPOSE. Sharing one
+    // with the caller left peakAt() returning with the counter at n, which
+    // ended the search loop after a single pass and scaled the whole field
+    // to zero alpha -- a nebula that was painted and then erased.
+    function peakAt(k){
+      var peak = 0;
+      for (var i = 0; i < n; i++) {
+        var a = a0[i] * k;
+        var p = i << 2;
+        var rr = (d[p]     / 255) * a + BR * (1 - a);
+        var gg = (d[p + 1] / 255) * a + BG * (1 - a);
+        var bb = (d[p + 2] / 255) * a + BB * (1 - a);
+        var lum = 0.2126 * lin(rr) + 0.7152 * lin(gg) + 0.0722 * lin(bb);
+        if (lum > peak) peak = lum;
+      }
+      return peak;
+    }
+
+    if (peakAt(1) > CEIL) {
+      // largest scale whose brightest pixel still sits under the ceiling.
+      // 14 halvings resolves k to ~6e-5, far finer than an 8-bit alpha.
+      var lo = 0, hi = 1, mid;
+      for (var t = 0; t < 14; t++) {
+        mid = (lo + hi) / 2;
+        if (peakAt(mid) > CEIL) hi = mid; else lo = mid;
+      }
+      for (var j = 0; j < n; j++) d[(j << 2) + 3] = Math.round(a0[j] * lo * 255);
+      x.putImageData(img, 0, 0);
+    }
+  }
+
+  /* Repainted on resize, and NOT gated on prefers-reduced-motion: the
+     field never animates, so there is nothing in it to reduce. A reader
+     who asks for less motion still gets the sky, just a still one. */
+  paintNebula();
+  var nebulaTimer;
+  window.addEventListener("resize", function(){
+    clearTimeout(nebulaTimer);
+    nebulaTimer = setTimeout(paintNebula, 200);
+  });
 
   /* ============================================================
      THE STARFIELD
