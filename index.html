@@ -8,7 +8,7 @@
 <meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700;800&display=swap" rel="stylesheet">
 <!-- Everything that starts hidden and is revealed by script is gated on
      this class, so the hiding only ever happens where the revealing can.
      Inline and first in the head: a deferred file could fail to load and
@@ -79,12 +79,14 @@
 
      THEMES.midnight defines no typeface, so display is the one place this
      page is not copying the product, and it is where a landing page earns
-     its presence. Instrument Sans is narrow enough to let a three-line
-     headline hold together at 4.9rem and has enough character in its
-     terminals to not read as the default. It is loaded at two weights and
-     used ONLY for headings; every other word on the page is system. */
+     its presence. Chivo is a Franklin-descended grotesque: sturdy, a little
+     industrial, with terminals that cut on an angle rather than sitting
+     flat. At 4.9rem that reads as built rather than as a default, which
+     suits an engineering tool better than the neutral geometrics every
+     product page currently reaches for. Three weights, headings ONLY --
+     every other word on this page is set in the system stack. */
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
-  --display:"Instrument Sans",var(--sans);
+  --display:"Chivo",var(--sans);
   --mono:ui-monospace,SFMono-Regular,"Cascadia Mono","Consolas",monospace;
 }
 
@@ -125,8 +127,8 @@ header,main,footer{position:relative;z-index:3}
 .wrap{width:100%;max-width:var(--wrap);margin-inline:auto;padding-inline:var(--gut)}
 
 h1,h2,h3,h4{font-family:var(--display);margin:0;line-height:1.08;letter-spacing:-.022em;font-weight:700}
-h1{font-size:clamp(2.7rem,6.4vw,4.9rem);letter-spacing:-.032em}
-h2{font-size:clamp(2rem,4.2vw,3.3rem);letter-spacing:-.028em}
+h1{font-size:clamp(2.7rem,6.4vw,4.9rem);letter-spacing:-.032em;font-weight:800}
+h2{font-size:clamp(2rem,4.2vw,3.3rem);letter-spacing:-.028em;font-weight:800}
 h3{font-size:1.16rem;letter-spacing:-.015em;font-weight:600}
 
 /* The accent word. The glow is the theme's own --glow, the same one the
