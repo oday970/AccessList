@@ -1,33 +1,52 @@
 /* ==========================================================
-   CRA Admin — The Overlap, in its Operate register.
-   Same three inks and the same multiply, at working density:
-   pigment marks state, paper carries data. Nothing decorative
-   sits between the admin and the allow-list.
+   CRA Admin — Midnight, in its Operate register.
+
+   Same theme as the public site and the panel: the tokens are
+   THEMES.midnight from cra.user.js, unchanged. What differs is
+   volume, not world. This surface is worked in for a whole
+   shift, so the night is still, the glass is quieter, and
+   nothing moves behind a data table.
    ========================================================== */
 :root{
-  /* Grey stock, matching the public site. */
-  --paper:#D5D5D5;
-  --paper-deep:#C6C6C6;
-  --ink:#2A2622;
-  --ink-soft:#5C5349;
+  /* --- THEMES.midnight.tokens, verbatim --- */
+  --bg:#0a1326;
+  --surf:rgba(120,160,255,0.08);
+  --surf2:rgba(120,160,255,0.16);
+  --border:rgba(120,160,255,0.16);
+  --text:#e6edff;
+  --dim:#9fb2e0;
+  --mut:#5e6f9e;
+  --accent:#4f8cff;
+  --accent2:#6aa6ff;
+  --field:rgba(6,12,28,0.7);
+  --shadow:rgba(0,8,30,0.6);
+  --glow:rgba(79,140,255,0.4);
+  --on-accent:#04102b;
 
-  --cyan:#0089B8;
-  --amber:#F2A11A;
-  --scarlet:#D8214E;
-  --ghost:#A9CBDD;
-  --on-solid:#FFFFFF;
+  --grad:linear-gradient(160deg,#0a1326 0%,#0d1b3a 45%,#10142e 100%);
+  --head-a:#1b2a4d;
+  --head-b:#10182f;
 
-  /* Re-derived for the grey: the old cream-ground siblings drop to ~4.05
-     here and stop clearing the small-text floor. These read 5.28 / 4.84. */
-  --cyan-t:#005A73;
-  --scarlet-t:#AD1739;
+  /* --mut is 3.44:1 against the gradient's lightest stop. It labels chrome
+     in the panel; here it would be setting column headers and hints, which
+     is type. This is its accessible sibling (5.68:1) and it is what every
+     label in this file actually uses. */
+  --mut-t:#8494c4;
 
-  --display:"Big Shoulders Stencil Display","Haettenschweiler","Arial Narrow",sans-serif;
-  --mono:"Martian Mono",ui-monospace,"Cascadia Mono",monospace;
-  --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* Status colours. The panel has no "revoked" state to borrow, so these
+     are the two the landing page already uses for a short bar and a
+     breached SLA, kept identical so the three surfaces agree. */
+  --warn:#ffb27a;
+  --bad:#ff7a8a;
 
-  --rule:1.5px solid var(--ink);
-  --hair:1px solid rgba(42,38,34,.22);
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"Cascadia Mono","Consolas",monospace;
+
+  --radius:16px;
+  --radius-sm:10px;
+  --radius-xs:8px;
+  --lift:0 18px 50px -12px var(--shadow),0 6px 18px -8px var(--shadow),0 0 0 1px var(--border);
+  --hair:1px solid var(--border);
 }
 
 *{box-sizing:border-box}
@@ -39,40 +58,58 @@
 
 body{
   margin:0;padding:0 clamp(14px,3vw,30px) 70px;
-  background:var(--paper);color:var(--ink);
-  font:400 15px/1.55 var(--body);
+  background:var(--bg);color:var(--text);
+  font:400 15px/1.55 var(--sans);
   -webkit-font-smoothing:antialiased;
 }
+
+/* The night. Two fixed layers, both pure CSS: the theme's gradient, and a
+   STATIC starfield.
+
+   The public site animates its stars off a canvas. This one does not, and
+   that is the one deliberate difference between the two surfaces. An admin
+   leaves this tab open for a shift while reading tables; a starfield
+   twinkling behind a column of usernames is a distraction that costs
+   attention and battery for no information. Same sky, holding still. */
 body::before{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23f)' opacity='.42'/%3E%3C/svg%3E");
-  mix-blend-mode:multiply;opacity:.3;
+  background:var(--grad);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    radial-gradient(1.1px 1.1px at 12% 18%,#eaf1ff,transparent),
+    radial-gradient(1px 1px at 31% 62%,#c9d8ff,transparent),
+    radial-gradient(1.3px 1.3px at 48% 27%,#ffffff,transparent),
+    radial-gradient(1px 1px at 67% 74%,#eaf1ff,transparent),
+    radial-gradient(.9px .9px at 82% 33%,#c9d8ff,transparent),
+    radial-gradient(1.2px 1.2px at 91% 81%,#eaf1ff,transparent),
+    radial-gradient(1px 1px at 22% 88%,#ffffff,transparent),
+    radial-gradient(.9px .9px at 57% 9%,#c9d8ff,transparent),
+    radial-gradient(1.1px 1.1px at 74% 51%,#eaf1ff,transparent),
+    radial-gradient(1px 1px at 6% 45%,#c9d8ff,transparent);
+  background-size:520px 420px;
+  opacity:.5;
 }
 body>*{position:relative;z-index:1}
 
-/* ---- registration crosses: the same punctuation as the public site --- */
-.reg{position:absolute;width:17px;height:17px;pointer-events:none;opacity:.55}
-.reg::before,.reg::after{content:"";position:absolute;background:var(--cyan)}
-.reg::before{left:50%;top:0;width:1.2px;height:100%;transform:translateX(-50%)}
-.reg::after{top:50%;left:0;height:1.2px;width:100%;transform:translateY(-50%)}
-.reg i{position:absolute;inset:4px;border:1.2px solid var(--cyan);border-radius:50%}
-.marked{position:relative}
-.marked>.reg:nth-of-type(1){top:-8.5px;left:-8.5px}
-.marked>.reg:nth-of-type(2){top:-8.5px;right:-8.5px}
-.marked>.reg:nth-of-type(3){bottom:-8.5px;left:-8.5px}
-.marked>.reg:nth-of-type(4){bottom:-8.5px;right:-8.5px}
+h1,h2{font-weight:800;letter-spacing:-.022em;line-height:1.15;margin:0}
+h1{font-size:1.4rem}
+h2{font-size:1.2rem;margin:28px 0 13px;letter-spacing:-.024em}
+h2 .s{color:var(--accent2)}
+h2 .c{color:var(--accent2)}
 
-h1,h2{font-family:var(--display);font-weight:800;text-transform:uppercase;
-  letter-spacing:.01em;line-height:.88;margin:0;filter:url(#wet-type)}
-h1{font-size:1.65rem}
-h2{font-size:1.35rem;margin:28px 0 13px}
-h2 .s{color:var(--scarlet)}
-h2 .c{color:var(--cyan)}
-
-:focus-visible{outline:2.5px solid var(--scarlet);outline-offset:3px}
+:focus-visible{outline:2.5px solid var(--accent2);outline-offset:3px;border-radius:4px}
 
 .mark{display:inline-flex;align-items:center;gap:10px}
 .mark svg{display:block;flex:none}
+/* the same moon the public masthead carries */
+.moon{
+  width:22px;height:22px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 34% 32%,#eaf1ff 0%,#b9ccff 42%,var(--accent) 100%);
+  box-shadow:0 0 14px var(--glow);
+}
+#login-form .moon{width:26px;height:26px}
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
   overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
@@ -81,107 +118,110 @@ h2 .c{color:var(--cyan)}
 #login-view{display:grid;place-items:center;min-height:92vh}
 #login-form{
   display:grid;gap:14px;width:min(350px,92vw);
-  border:var(--rule);padding:28px;background:var(--paper);
+  border-radius:var(--radius);padding:28px;
+  background:var(--surf);box-shadow:var(--lift);
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
 }
 #login-form h1{margin-bottom:2px}
 #login-form p.hint{margin:0}
-/* field labels are mono caps everywhere else in the panel; this one was
-   inheriting body sans and reading as stray copy */
 #login-form label{font:600 10px/1.4 var(--mono);text-transform:uppercase;
-  letter-spacing:.09em;color:var(--ink-soft);margin-bottom:-7px}
+  letter-spacing:.09em;color:var(--mut-t);margin-bottom:-7px}
 
 /* ---- shell -------------------------------------------------- */
 header{
   display:flex;align-items:center;gap:18px;flex-wrap:wrap;
-  padding:17px 0;border-bottom:var(--rule);
+  padding:17px 0;border-bottom:var(--hair);
 }
 #stats-bar{
   margin-left:auto;font:400 11px/1.5 var(--mono);
-  color:var(--ink-soft);letter-spacing:.04em;
+  color:var(--mut-t);letter-spacing:.04em;
 }
 
 /* ---- banner: a failure says so and stays put ---------------- */
 #banner{
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  border:var(--rule);padding:13px 16px;margin:16px 0 0;
-  background:rgba(216,33,78,.1);
+  border-radius:var(--radius-sm);padding:13px 16px;margin:16px 0 0;
+  background:rgba(255,122,138,.12);box-shadow:inset 0 0 0 1px rgba(255,122,138,.4);
 }
-#banner p{margin:0;flex:1;min-width:210px;font-size:14px}
+#banner p{margin:0;flex:1;min-width:210px;font-size:14px;color:var(--text)}
 
 /* ---- tabs ---------------------------------------------------- */
-nav#tabs{display:flex;gap:0;border-bottom:var(--rule);margin:18px 0 22px;overflow-x:auto}
+nav#tabs{display:flex;gap:0;border-bottom:var(--hair);margin:18px 0 22px;overflow-x:auto}
 nav#tabs button{
-  background:none;border:0;border-bottom:4px solid transparent;
+  background:none;border:0;border-bottom:2.5px solid transparent;border-radius:0;
   font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.11em;
-  color:var(--ink-soft);padding:12px 20px;cursor:pointer;white-space:nowrap;
-  margin-bottom:-1.5px;clip-path:none;
+  color:var(--mut-t);padding:12px 20px;cursor:pointer;white-space:nowrap;
+  margin-bottom:-1px;box-shadow:none;
 }
-nav#tabs button:hover{color:var(--ink);transform:none;background:none}
-nav#tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--scarlet)}
+nav#tabs button:hover{color:var(--text);transform:none;background:none;box-shadow:none}
+nav#tabs button[aria-selected="true"]{
+  color:var(--text);border-bottom-color:var(--accent);
+  text-shadow:0 0 18px var(--glow);
+}
 
 /* ---- controls ----------------------------------------------- */
 .toolbar{display:flex;gap:10px;align-items:center;margin:14px 0;flex-wrap:wrap}
 .toolbar .spacer{margin-left:auto}
 
-/* inputs take the same cut as buttons; the board draws them as one family */
 input,textarea,select{
-  font:400 14px/1.4 var(--body);color:var(--ink);background:var(--paper);
-  border:1.5px solid rgba(42,38,34,.4);padding:9px 11px;
-  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  font:400 14px/1.4 var(--sans);color:var(--text);background:var(--field);
+  border:1px solid var(--border);border-radius:var(--radius-xs);padding:9px 11px;
+  transition:border-color .16s,box-shadow .16s;
 }
-input[type=checkbox],input[type=radio]{clip-path:none}
-input:focus,textarea:focus,select:focus{border-color:var(--cyan-t)}
-input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--cyan)}
+input:focus,textarea:focus,select:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.18);outline:none;
+}
+input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--accent);border-radius:0}
 textarea{font-family:var(--mono);font-size:12.5px}
+select option{background:#0d1b3a;color:var(--text)}
 
 button{
   font:700 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.09em;
-  color:var(--ink);background:transparent;border:1.5px solid var(--ink);
+  color:var(--text);background:var(--surf);
+  border:0;box-shadow:inset 0 0 0 1px var(--border);
+  border-radius:var(--radius-xs);
   padding:10px 15px;cursor:pointer;
-  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
-  transition:transform .14s cubic-bezier(.2,.8,.3,1),background .14s,color .14s;
+  transition:transform .14s cubic-bezier(.2,.8,.3,1),background .14s,box-shadow .16s,color .14s;
 }
-button:hover:not(:disabled){transform:translate(-1px,-1px);background:var(--paper-deep)}
+button:hover:not(:disabled){transform:translateY(-1px);background:var(--surf2);box-shadow:inset 0 0 0 1px var(--accent)}
 button:disabled{opacity:.38;cursor:not-allowed}
-button.primary{background:var(--scarlet-t);border-color:var(--scarlet-t);color:var(--on-solid)}
-button.primary:hover:not(:disabled){background:var(--scarlet-t);filter:saturate(1.15)}
-button.danger{border-color:var(--scarlet);color:var(--scarlet-t)}
-button.danger:hover:not(:disabled){background:var(--scarlet-t);color:var(--on-solid)}
+/* --on-accent, never white: white on --accent is 3.22:1 */
+button.primary{background:var(--accent);color:var(--on-accent);box-shadow:0 4px 16px -6px var(--glow)}
+button.primary:hover:not(:disabled){background:var(--accent2);color:var(--on-accent);box-shadow:0 8px 22px -8px var(--glow)}
+button.danger{color:var(--bad);box-shadow:inset 0 0 0 1px rgba(255,122,138,.45)}
+button.danger:hover:not(:disabled){background:rgba(255,122,138,.16);color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
 
 /* ---- tables -------------------------------------------------- */
-.table-wrap{width:100%;overflow-x:auto;border:var(--rule)}
+.table-wrap{
+  width:100%;overflow-x:auto;border-radius:var(--radius);
+  background:var(--surf);box-shadow:var(--lift);
+}
 table{width:100%;border-collapse:collapse}
 caption{
-  text-align:left;padding:11px 13px;border-bottom:var(--hair);
-  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);
+  text-align:left;padding:13px 15px;border-bottom:var(--hair);
+  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--mut-t);
 }
-th,td{text-align:left;padding:10px 13px;border-bottom:var(--hair)}
+th,td{text-align:left;padding:10px 15px;border-bottom:var(--hair)}
 tbody tr:last-child td{border-bottom:0}
 th{
   font:600 10px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.1em;
-  color:var(--ink-soft);background:var(--paper-deep);
+  color:var(--mut-t);background:linear-gradient(135deg,var(--head-a),var(--head-b));
 }
-tbody tr:hover td{background:rgba(0,137,184,.1)}
-td.revoked{color:var(--ink-soft);text-decoration:line-through}
+tbody tr:hover td{background:var(--surf)}
+td.revoked{color:var(--mut-t);text-decoration:line-through}
 td.acts{white-space:nowrap}
 td.acts button{padding:7px 11px;font-size:10px}
 
-/* Status is a laid pass, not a coloured box: real pigment on paper with
-   a torn edge, and always labelled so colour is never the only signal. */
+/* Status is a tinted pill with its own glow, and always labelled, so
+   colour is never the only signal. */
 .pill{
-  position:relative;display:inline-block;padding:4px 10px;
-  font:600 9.5px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.09em;
-  color:var(--ink);isolation:isolate;
+  display:inline-block;padding:4px 11px;border-radius:999px;
+  font:600 9.5px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.09em;
 }
-.pill::before{
-  content:"";position:absolute;inset:-2px -4px;z-index:-1;
-  background:var(--c);opacity:.6;
-  mix-blend-mode:multiply;filter:url(#wet);
-}
-.pill.on{--c:var(--cyan)}
-.pill.off{--c:var(--scarlet)}
-.flag{font:600 12px/1 var(--mono);color:var(--cyan-t)}
-.flag.no{color:rgba(42,38,34,.42)}
+.pill.on{background:rgba(79,140,255,.18);color:var(--accent2);box-shadow:inset 0 0 0 1px rgba(79,140,255,.4)}
+.pill.off{background:rgba(255,122,138,.16);color:var(--bad);box-shadow:inset 0 0 0 1px rgba(255,122,138,.4)}
+.flag{font:600 12px/1 var(--mono);color:var(--accent2)}
+.flag.no{color:var(--mut-t)}
 
 /* The in-row group picker writes on change, so it is deliberately quieter
    than a form control that waits for a Save: lighter border, tighter
@@ -196,66 +236,65 @@ td.acts button{padding:7px 11px;font-size:10px}
 select.group-select{
   font:400 12px/1.3 var(--mono);padding:5px 8px;
   min-width:30ch;max-width:100%;
-  border-color:rgba(42,38,34,.22);background:transparent;
+  border-color:transparent;background:transparent;color:var(--dim);
 }
-select.group-select:hover:not(:disabled){border-color:rgba(42,38,34,.5);background:var(--paper)}
+select.group-select:hover:not(:disabled){border-color:var(--border);background:var(--field);color:var(--text)}
 select.group-select:disabled{opacity:.45;cursor:progress}
 
 /* Marks the one group that cannot be deleted. Never colour alone: the
-   word "default" is the signal, the pigment only draws the eye. */
+   word "default" is the signal, the tint only draws the eye. */
 .tag{
-  position:relative;display:inline-block;padding:2px 7px;margin-left:4px;
-  font:600 9px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.09em;
-  color:var(--ink);isolation:isolate;
-}
-.tag::before{
-  content:"";position:absolute;inset:-1px -3px;z-index:-1;
-  background:var(--amber);opacity:.55;
-  mix-blend-mode:multiply;filter:url(#wet);
+  display:inline-block;padding:2px 8px;margin-left:6px;border-radius:999px;
+  font:600 9px/1.5 var(--mono);text-transform:uppercase;letter-spacing:.09em;
+  background:rgba(255,178,122,.16);color:var(--warn);
+  box-shadow:inset 0 0 0 1px rgba(255,178,122,.35);
 }
 
-#page-info{font:400 11px/1 var(--mono);color:var(--ink-soft)}
+#page-info{font:400 11px/1 var(--mono);color:var(--mut-t)}
 
-.state-row td{text-align:center;padding:34px 13px;color:var(--ink-soft)}
-.state-row b{display:block;font-family:var(--display);font-weight:800;
-  font-size:1.3rem;text-transform:uppercase;color:var(--ink);margin-bottom:5px}
+.state-row td{text-align:center;padding:34px 15px;color:var(--dim)}
+.state-row b{display:block;font-weight:800;font-size:1.15rem;
+  letter-spacing:-.02em;color:var(--text);margin-bottom:5px}
 .state-row span{font-size:13px}
 
 /* ---- themes -------------------------------------------------- */
-.theme-list{border:var(--rule)}
+.theme-list{border-radius:var(--radius);background:var(--surf);box-shadow:var(--lift);overflow:hidden}
 .theme-row{
-  display:flex;align-items:center;gap:12px;padding:10px 14px;
+  display:flex;align-items:center;gap:12px;padding:11px 16px;
   border-bottom:var(--hair);flex-wrap:wrap;
 }
 .theme-row:last-child{border-bottom:0}
+.theme-row:hover{background:var(--surf)}
 .theme-row .spacer{margin-left:auto}
 .theme-row label{display:flex;align-items:center;gap:6px;
-  font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft)}
-.theme-row .nm{font-weight:500}
+  font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mut-t)}
+.theme-row .nm{font-weight:500;color:var(--text)}
 
 /* ---- dialogs ------------------------------------------------- */
 dialog{
-  background:var(--paper);color:var(--ink);border:var(--rule);
+  background:#0d1b3a;color:var(--text);
+  border:0;border-radius:var(--radius);box-shadow:var(--lift);
   padding:26px;max-width:92vw;
 }
-dialog::backdrop{background:rgba(42,38,34,.55)}
+dialog::backdrop{background:rgba(4,10,26,.72);backdrop-filter:blur(3px)}
 dialog form{display:grid;gap:13px;min-width:min(400px,86vw)}
-dialog h2{margin:0 0 4px}
+dialog h2{margin:0 0 4px;font-size:1.15rem}
 dialog label{display:grid;gap:5px;
-  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft)}
+  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--mut-t)}
 dialog label.inline{display:flex;align-items:center;gap:9px;
-  text-transform:none;letter-spacing:0;font:400 13.5px/1.4 var(--body);color:var(--ink)}
+  text-transform:none;letter-spacing:0;font:400 13.5px/1.4 var(--sans);color:var(--text)}
 /* The radio group in the delete dialog. A real fieldset, because the two
    options are one decision and a screen reader should hear the legend
    before either — but styled down to the panel's own hairline so it does
    not arrive as a browser-default sunken box. */
 dialog fieldset{
   display:grid;gap:9px;margin:0;padding:13px 15px;
-  border:1px solid rgba(42,38,34,.28);
+  border:0;border-radius:var(--radius-sm);
+  background:var(--field);box-shadow:inset 0 0 0 1px var(--border);
 }
 dialog legend{
   padding:0 6px;
-  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft);
+  font:600 10px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.09em;color:var(--mut-t);
 }
 /* Twenty achievements is too many for one column in a dialog, and a
    single scrolling list makes it hard to see what is ticked. Two columns
@@ -266,10 +305,10 @@ dialog legend{
   max-height:46vh;overflow-y:auto;padding:2px;
 }
 .ach-list label{
-  display:flex;align-items:center;gap:9px;padding:5px 4px;cursor:pointer;
-  font:400 13px/1.35 var(--body);color:var(--ink);text-transform:none;letter-spacing:0;
+  display:flex;align-items:center;gap:9px;padding:6px 8px;cursor:pointer;border-radius:var(--radius-xs);
+  font:400 13px/1.35 var(--sans);color:var(--text);text-transform:none;letter-spacing:0;
 }
-.ach-list label:hover{background:var(--paper-deep)}
+.ach-list label:hover{background:var(--surf2)}
 .ach-list input{flex:none}
 .ach-list .ach-icon{font-size:14px;line-height:1}
 
@@ -278,9 +317,19 @@ dialog legend{
 dialog menu{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;margin:10px 0 0;padding:0}
 
 /* ---- messages ------------------------------------------------ */
-.err{color:var(--scarlet-t);font-size:13.5px;margin:0}
-.hint{font-size:12.5px;color:var(--ink-soft)}
-.hint-strong{font-size:12.5px;border:var(--hair);padding:11px 13px;margin:0 0 14px}
+.err{color:var(--bad);font-size:13.5px;margin:0}
+.hint{font-size:12.5px;color:var(--dim)}
+.hint-strong{
+  font-size:12.5px;border-radius:var(--radius-sm);padding:12px 15px;margin:0 0 14px;
+  background:var(--surf);box-shadow:inset 0 0 0 1px var(--border);color:var(--dim);
+}
+
+/* scrollbars, so an overflowing table does not hand back a bright strip */
+*{scrollbar-color:var(--surf2) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surf2);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:rgba(120,160,255,.28)}
 
 @media (max-width:660px){
   body{padding-inline:12px}
@@ -290,4 +339,8 @@ dialog menu{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;margin:
      admin-authored data on phones. The wrapper already scrolls, so the
      column stays and the table scrolls to reach it. */
   #user-table{min-width:640px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  button,input,textarea,select{transition:none}
 }

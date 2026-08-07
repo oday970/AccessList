@@ -4,40 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="dark">
 <title>CRA Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;800&family=Archivo:wght@400;500;600;700&family=Martian+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
-<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
-  <defs>
-    <!-- the same paper that tears a pass on the public site tears one here -->
-    <filter id="wet" x="-14%" y="-45%" width="128%" height="190%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.016 0.06" numOctaves="4" seed="9" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-    <filter id="wet-type" x="-4%" y="-10%" width="108%" height="120%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.9 0.42" numOctaves="3" seed="4" result="t"/>
-      <feDisplacementMap in="SourceGraphic" in2="t" scale="1.5" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-    <g id="i-mark">
-      <rect x="2"  y="6" width="13" height="13" fill="#0089B8" opacity=".75" style="mix-blend-mode:multiply"/>
-      <rect x="7"  y="3" width="13" height="13" fill="#F2A11A" opacity=".75" style="mix-blend-mode:multiply"/>
-      <rect x="11" y="9" width="13" height="13" fill="#D8214E" opacity=".75" style="mix-blend-mode:multiply"/>
-    </g>
-  </defs>
-</svg>
-
 <section id="login-view">
-  <form id="login-form" class="marked" novalidate>
-    <span class="reg"><i></i></span><span class="reg"><i></i></span>
-    <span class="reg"><i></i></span><span class="reg"><i></i></span>
+  <form id="login-form" novalidate>
     <h1 class="mark">
-      <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true" focusable="false"><use href="#i-mark"/></svg>
+      <span class="moon" aria-hidden="true"></span>
       CRA Admin
     </h1>
     <p class="hint">Manages the Case Review Assistant allow-list.</p>
@@ -51,7 +30,7 @@
 <main id="app-view" hidden>
   <header>
     <h1 class="mark">
-      <svg width="22" height="22" viewBox="0 0 26 26" aria-hidden="true" focusable="false"><use href="#i-mark"/></svg>
+      <span class="moon" aria-hidden="true"></span>
       CRA Admin
     </h1>
     <p id="stats-bar" aria-live="polite"></p>
