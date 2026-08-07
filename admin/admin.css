@@ -39,7 +39,10 @@
   --warn:#ffb27a;
   --bad:#ff7a8a;
 
-  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  /* The panel's own stack, verbatim from cra.user.js. An Operate surface
+     has nothing to gain from a webfont: this is what the product renders
+     in, it needs no network request, and it cannot flash. */
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"Cascadia Mono","Consolas",monospace;
 
   --radius:16px;
