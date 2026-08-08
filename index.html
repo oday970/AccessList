@@ -1179,7 +1179,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
     var ctx = canvas.getContext("2d");
     var TAU = Math.PI * 2;
     var rnd = function(a, b){ return a + Math.random() * (b - a); };
-    var W = 0, H = 0, dpr = 1, parts = [], meteor = null, meteorAt = 4, raf = 0;
+    var W = 0, H = 0, dpr = 1, parts = [], meteor = null, meteorAt = 2.5, raf = 0;
     var t = 0, last = 0;   // seconds since start, and the previous timestamp
 
     function hexA(hex, a){
@@ -1202,20 +1202,26 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
        and out of step and the brightness wanders the way real scintillation
        does, rather than marching.
 
-       Most stars barely move at all. Roughly three in four get an
-       amplitude under a tenth, which is what makes the few that do move
-       read as twinkling instead of the whole sky flashing at once. */
+       On amplitude: an earlier pass held almost every star under a tenth
+       to avoid the sky flashing. It went too far the other way -- at a 14%
+       swing over 5-18 seconds nothing visibly moved and the field read as
+       a still image. Most stars now swing by a third to a half of their
+       own brightness, which is a real blink, and the dimmest of them do
+       drop to near-invisible at the bottom of a cycle. About one in six
+       still holds nearly steady, so the field keeps some depth rather than
+       every point in it pumping. */
     function spawn(){
-      var calm = Math.random() < 0.74;
+      var steady = Math.random() < 0.17;
       return {
         x: rnd(0, W), y: rnd(0, H),
         r: rnd(.4, 1.2),
-        base: rnd(.20, .72),
-        amp:  calm ? rnd(.03, .09) : rnd(.13, .26),
-        // radians/sec: 5-18s and 8-29s, so the beat between them is longer
-        // than either and never lines up twice the same way
-        f1: rnd(0.35, 1.25), p1: rnd(0, TAU),
-        f2: rnd(0.22, 0.80), p2: rnd(0, TAU)
+        base: rnd(.18, .50),
+        amp:  steady ? rnd(.05, .12) : rnd(.24, .46),
+        // radians/sec: 2.4-7s and 3.5-11s. Slow enough that nothing
+        // strobes, and the beat between two unrelated periods is what
+        // keeps a star from ever repeating the same cycle twice.
+        f1: rnd(0.90, 2.60), p1: rnd(0, TAU),
+        f2: rnd(0.57, 1.80), p2: rnd(0, TAU)
       };
     }
 
@@ -1266,7 +1272,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
           y: rnd(-10, H * 0.35),
           vx: (fromLeft ? 1 : -1) * rnd(240, 420),   // px/sec
           vy: rnd(150, 270),
-          len: rnd(28, 50),
+          len: rnd(52, 92),
           life: 1
         };
       }
@@ -1284,12 +1290,19 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
         g.addColorStop(0, hexA("#ffffff", meteor.life));
         g.addColorStop(.4, hexA("#4f8cff", meteor.life * 0.6));
         g.addColorStop(1, hexA("#4f8cff", 0));
-        ctx.strokeStyle = g; ctx.lineWidth = 2; ctx.lineCap = "round";
+        ctx.strokeStyle = g; ctx.lineWidth = 3; ctx.lineCap = "round";
         ctx.beginPath(); ctx.moveTo(meteor.x, meteor.y); ctx.lineTo(tx, ty); ctx.stroke();
+        // a soft halo under the head, so the leading point reads as a
+        // burning thing rather than as the end of a drawn line
+        var halo = ctx.createRadialGradient(meteor.x, meteor.y, 0, meteor.x, meteor.y, 9);
+        halo.addColorStop(0, hexA("#ffffff", meteor.life * 0.55));
+        halo.addColorStop(1, hexA("#4f8cff", 0));
+        ctx.fillStyle = halo;
+        ctx.beginPath(); ctx.arc(meteor.x, meteor.y, 9, 0, TAU); ctx.fill();
         ctx.fillStyle = hexA("#ffffff", meteor.life);
-        ctx.beginPath(); ctx.arc(meteor.x, meteor.y, 1.6, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(meteor.x, meteor.y, 2.3, 0, TAU); ctx.fill();
         if (meteor.life <= 0 || meteor.x < -60 || meteor.x > W + 60 || meteor.y > H + 60) {
-          meteor = null; meteorAt = t + rnd(9, 26);
+          meteor = null; meteorAt = t + rnd(5, 15);
         }
       }
 
