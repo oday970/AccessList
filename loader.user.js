@@ -17,13 +17,18 @@
 // @grant        GM_setClipboard
 // @grant        GM_addValueChangeListener
 // @connect      casereview.cc
-// NOTE: '@connect workers.dev' was removed in 0.29.1. It granted the
-// fetched client permission to talk to EVERY *.workers.dev host, which is
+// NOTE: the wildcard grant for *.workers.dev hosts was removed in 0.29.1.
+// It let the fetched client talk to EVERY host under that domain, which is
 // a broad exfiltration path for code this loader executes with GM_*
 // privileges and never verifies. Nothing needs it: cra.user.js builds
 // every URL from API_BASE = 'https://api.casereview.cc' (see its
-// LB_WORKER_URL). Re-add it only if the API moves back to a workers.dev
-// hostname, and prefer naming that host exactly if so.
+// LB_WORKER_URL). If the API ever moves back to such a hostname, add a
+// grant naming that exact host rather than the wildcard.
+//
+// The directive's literal text is deliberately not written out anywhere in
+// this block: metadata parsers differ on how strictly they anchor a
+// directive to the start of a line, and a commented-out grant that one
+// engine ignores and another honours is the worst of both.
 // TRANSITION GRANT — remove in a later version bump, after cutover.
 // Between publishing this loader and merging the new client, the Worker still
 // serves the OLD client, which fetches auth.json from raw.githubusercontent.com.

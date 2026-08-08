@@ -11,9 +11,10 @@
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @connect      casereview.cc
-// '@connect workers.dev' removed in 1.0.1 — see the note in
-// loader.user.js. The guard talks to api.casereview.cc and the SFDC
-// proxy named below, and to nothing else.
+// The wildcard grant for *.workers.dev hosts was removed in 1.0.1 — see
+// the longer note in loader.user.js, including why the directive's literal
+// text is not written out here. The guard talks to api.casereview.cc and
+// the SFDC proxy named below, and to nothing else.
 // The guard itself talks to the SFDC proxy. Tampermonkey attributes that
 // request to THIS file once the code is eval'd here, so the grant has to
 // live in the loader's metadata block, not in the fetched source — the
