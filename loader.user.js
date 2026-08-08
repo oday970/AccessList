@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cisco Case Review Assistant — Loader
 // @namespace    http://tampermonkey.net/
-// @version      0.29.0
+// @version      0.29.1
 // @description  Loads the Case Review Assistant script.
 // @author       Oday (odemar@cisco.com)
 // @match        https://scripts.cisco.com/app/quicker_csone/case/*
@@ -17,7 +17,13 @@
 // @grant        GM_setClipboard
 // @grant        GM_addValueChangeListener
 // @connect      casereview.cc
-// @connect      workers.dev
+// NOTE: '@connect workers.dev' was removed in 0.29.1. It granted the
+// fetched client permission to talk to EVERY *.workers.dev host, which is
+// a broad exfiltration path for code this loader executes with GM_*
+// privileges and never verifies. Nothing needs it: cra.user.js builds
+// every URL from API_BASE = 'https://api.casereview.cc' (see its
+// LB_WORKER_URL). Re-add it only if the API moves back to a workers.dev
+// hostname, and prefer naming that host exactly if so.
 // TRANSITION GRANT — remove in a later version bump, after cutover.
 // Between publishing this loader and merging the new client, the Worker still
 // serves the OLD client, which fetches auth.json from raw.githubusercontent.com.

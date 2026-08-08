@@ -9,6 +9,27 @@
   Content-Type: application/javascript; charset=utf-8
   Cache-Control: public, max-age=300
 
+# Applies to every page, not just the panel: the landing page is the one
+# an attacker would reach first, and nosniff/Referrer-Policy cost nothing
+# there. HSTS is set site-wide because both casereview.cc and
+# api.casereview.cc are HTTPS-only — check any future subdomain can serve
+# TLS before leaving includeSubDomains in place.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+
 /admin/*
   X-Robots-Tag: noindex
   X-Frame-Options: DENY
+  # The panel holds an admin bearer token in sessionStorage, and nothing
+  # else constrained what could read it. admin/index.html carries no
+  # inline <style>, <script> or on* attribute — every handler is assigned
+  # as a property from admin.js — so 'self' is enough and no
+  # 'unsafe-inline' is needed. Verify that still holds before editing the
+  # page: an inline style added later will silently fail to apply.
+  #
+  # connect-src names the API explicitly. If the API hostname ever
+  # changes, this line has to change with it or every request in the
+  # panel dies at the browser.
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://api.casereview.cc; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
