@@ -386,9 +386,18 @@ section{padding:clamp(56px,8vw,108px) 0;border-top:1px solid var(--border)}
   padding:7px 12px;border-radius:999px;
   background:var(--surf);color:var(--dim);box-shadow:inset 0 0 0 1px var(--border);
 }
-.swatches{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+/* Twenty-seven of them, so the swatch comes down from 40px to 32 and the
+   catalogue reads as a palette rather than a row of buttons. Split into
+   its two real groups, because "15 standard and 12 seasonal" is the
+   actual shape of the thing and a single run of 27 hides it. */
+.sw-label{
+  display:block;margin:18px 0 8px;
+  font:600 10px/1 var(--mono);color:var(--mut-t);
+  letter-spacing:.1em;text-transform:uppercase;
+}
+.swatches{display:flex;gap:7px;flex-wrap:wrap}
 .swatches button{
-  width:40px;height:40px;border-radius:12px;border:0;cursor:pointer;padding:0;
+  width:32px;height:32px;border-radius:9px;border:0;cursor:pointer;padding:0;
   background:var(--t);box-shadow:inset 0 0 0 1px var(--border);
   transition:transform .18s,box-shadow .18s;
 }
@@ -731,7 +740,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
       <div class="sec-head rise">
         <h2>And then, because<br>people are competitive.</h2>
         <p class="lede">The accuracy is what earns the install. This is the part that keeps it open:
-        a leaderboard across day, week, month and all time, achievements, and seven panel themes.</p>
+        a leaderboard across day, week, month and all time, achievements, and twenty-seven panel themes.</p>
       </div>
 
       <div class="team">
@@ -752,25 +761,73 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
         </div>
 
         <div class="rise">
-          <h3 style="font-size:1.3rem;margin-bottom:12px">Seven themes</h3>
-          <p style="font-size:.95rem;color:var(--dim)">The panel ships seven of them. Midnight - the one
-          this page is wearing - is the default; the rest are yours if the theme picker is enabled on
-          your account.</p>
-          <div class="swatches" id="swatches" role="group" aria-label="Panel themes">
-            <button type="button" data-n="Midnight" style="--t:linear-gradient(160deg,#0a1326,#0d1b3a 45%,#10142e)" aria-pressed="true">
-              <span class="sr-only">Midnight theme</span></button>
-            <button type="button" data-n="Cyberpunk" style="--t:linear-gradient(165deg,#0d0221,#240046 45%,#5a189a)" aria-pressed="false">
-              <span class="sr-only">Cyberpunk theme</span></button>
-            <button type="button" data-n="Matrix" style="--t:linear-gradient(180deg,#000d00,#021a02 60%,#001000)" aria-pressed="false">
-              <span class="sr-only">Matrix theme</span></button>
-            <button type="button" data-n="Synthwave" style="--t:linear-gradient(180deg,#2b0a5e,#5e1a8c 35%,#ff5fb0 78%,#ffb86c)" aria-pressed="false">
-              <span class="sr-only">Synthwave theme</span></button>
-            <button type="button" data-n="Aurora" style="--t:linear-gradient(200deg,#02111a,#0a3a3f 35%,#1a6b5a 60%,#5ef2c9)" aria-pressed="false">
-              <span class="sr-only">Aurora theme</span></button>
-            <button type="button" data-n="Royal" style="--t:radial-gradient(130% 130% at 50% 0%,#3b1d6e,#241048 45%,#140a2e)" aria-pressed="false">
-              <span class="sr-only">Royal theme</span></button>
-            <button type="button" data-n="Crimson" style="--t:radial-gradient(120% 120% at 50% 0%,#4a0d0d,#1c0606 55%,#100303)" aria-pressed="false">
-              <span class="sr-only">Crimson theme</span></button>
+          <h3 style="font-size:1.3rem;margin-bottom:12px">Twenty-seven themes</h3>
+          <p style="font-size:.95rem;color:var(--dim)">Fifteen standard - Cyberpunk, Matrix, Dracula,
+          Nord, Solarized, Aurora - and twelve seasonal, from Ramadan and both Eids to Halloween and
+          the World Cup. Midnight, the one this page is wearing, is the default. Which of the others
+          you can reach depends on what the maintainer has enabled and whether the picker is switched
+          on for your account.</p>
+          <div id="swatches">
+            <span class="sw-label">15 standard</span>
+            <div class="swatches" role="group" aria-label="Standard panel themes">
+              <button type="button" data-n="Midnight" style="--t:linear-gradient(160deg,#0a1326 0%,#0d1b3a 45%,#10142e 100%)" aria-pressed="true">
+                <span class="sr-only">Midnight theme</span></button>
+              <button type="button" data-n="Cyberpunk" style="--t:linear-gradient(165deg,#0d0221 0%,#240046 45%,#3c096c 80%,#5a189a 100%)" aria-pressed="false">
+                <span class="sr-only">Cyberpunk theme</span></button>
+              <button type="button" data-n="Matrix" style="--t:linear-gradient(180deg,#000d00 0%,#021a02 60%,#001000 100%)" aria-pressed="false">
+                <span class="sr-only">Matrix theme</span></button>
+              <button type="button" data-n="Crimson" style="--t:radial-gradient(120% 120% at 50% 0%,#4a0d0d 0%,#1c0606 55%,#100303 100%)" aria-pressed="false">
+                <span class="sr-only">Crimson theme</span></button>
+              <button type="button" data-n="Synthwave" style="--t:linear-gradient(180deg,#2b0a5e 0%,#5e1a8c 35%,#ff5fb0 78%,#ffb86c 100%)" aria-pressed="false">
+                <span class="sr-only">Synthwave theme</span></button>
+              <button type="button" data-n="Dracula" style="--t:linear-gradient(155deg,#282a36 0%,#1e1f29 60%,#191a23 100%)" aria-pressed="false">
+                <span class="sr-only">Dracula theme</span></button>
+              <button type="button" data-n="Nord" style="--t:linear-gradient(165deg,#2e3440 0%,#3b4252 55%,#434c5e 100%)" aria-pressed="false">
+                <span class="sr-only">Nord theme</span></button>
+              <button type="button" data-n="Solarized" style="--t:linear-gradient(160deg,#002b36 0%,#073642 60%,#04303a 100%)" aria-pressed="false">
+                <span class="sr-only">Solarized theme</span></button>
+              <button type="button" data-n="Oceanic" style="--t:linear-gradient(180deg,#041e2e 0%,#0a3a52 55%,#0d5a73 100%)" aria-pressed="false">
+                <span class="sr-only">Oceanic theme</span></button>
+              <button type="button" data-n="Ember" style="--t:linear-gradient(0deg,#ff8a3d 0%,#7a2d0a 30%,#2a1206 70%,#1a0e06 100%)" aria-pressed="false">
+                <span class="sr-only">Ember theme</span></button>
+              <button type="button" data-n="Forest" style="--t:linear-gradient(165deg,#06140f 0%,#0f2e20 55%,#14402c 100%)" aria-pressed="false">
+                <span class="sr-only">Forest theme</span></button>
+              <button type="button" data-n="Royal" style="--t:radial-gradient(130% 130% at 50% 0%,#3b1d6e 0%,#241048 45%,#140a2e 100%)" aria-pressed="false">
+                <span class="sr-only">Royal theme</span></button>
+              <button type="button" data-n="Gilded" style="--t:linear-gradient(160deg,#2a2206 0%,#4a3a0a 50%,#1a1404 100%)" aria-pressed="false">
+                <span class="sr-only">Gilded theme</span></button>
+              <button type="button" data-n="Aurora" style="--t:linear-gradient(200deg,#02111a 0%,#0a3a3f 35%,#1a6b5a 60%,#5ef2c9 110%)" aria-pressed="false">
+                <span class="sr-only">Aurora theme</span></button>
+              <button type="button" data-n="Sakura" style="--t:linear-gradient(170deg,#ffd9ec 0%,#ffc1dd 40%,#f7a8c9 75%,#e98bb4 100%)" aria-pressed="false">
+                <span class="sr-only">Sakura theme</span></button>
+            </div>
+            <span class="sw-label">12 seasonal</span>
+            <div class="swatches" role="group" aria-label="Seasonal panel themes">
+              <button type="button" data-n="World Cup 2026" style="--t:linear-gradient(170deg,#0a3d2e 0%,#11633f 45%,#0a3d2e 100%)" aria-pressed="false">
+                <span class="sr-only">World Cup 2026 theme</span></button>
+              <button type="button" data-n="Halloween" style="--t:linear-gradient(165deg,#1a0d02 0%,#3a1e05 45%,#0d0602 100%)" aria-pressed="false">
+                <span class="sr-only">Halloween theme</span></button>
+              <button type="button" data-n="Christmas" style="--t:linear-gradient(160deg,#0a2a1a 0%,#103a22 40%,#2a0d0d 100%)" aria-pressed="false">
+                <span class="sr-only">Christmas theme</span></button>
+              <button type="button" data-n="New Year" style="--t:linear-gradient(180deg,#05050f 0%,#1a1640 55%,#2a2350 100%)" aria-pressed="false">
+                <span class="sr-only">New Year theme</span></button>
+              <button type="button" data-n="Eid Al-Adha" style="--t:linear-gradient(165deg,#04130d 0%,#0d3a2a 50%,#063322 100%)" aria-pressed="false">
+                <span class="sr-only">Eid Al-Adha theme</span></button>
+              <button type="button" data-n="Eid Al-Fitr" style="--t:linear-gradient(180deg,#070a26 0%,#1a2a6b 55%,#0d1440 100%)" aria-pressed="false">
+                <span class="sr-only">Eid Al-Fitr theme</span></button>
+              <button type="button" data-n="Ramadan" style="--t:linear-gradient(170deg,#0a0726 0%,#2a1f55 50%,#140d3a 100%)" aria-pressed="false">
+                <span class="sr-only">Ramadan theme</span></button>
+              <button type="button" data-n="Valentine" style="--t:linear-gradient(165deg,#2a0814 0%,#5a1030 45%,#380a1c 100%)" aria-pressed="false">
+                <span class="sr-only">Valentine theme</span></button>
+              <button type="button" data-n="Spring" style="--t:linear-gradient(170deg,#d4f5a8 0%,#a8e070 45%,#7bbf3a 100%)" aria-pressed="false">
+                <span class="sr-only">Spring theme</span></button>
+              <button type="button" data-n="Summer" style="--t:linear-gradient(170deg,#ffe66d 0%,#ffb020 35%,#22b8d6 100%)" aria-pressed="false">
+                <span class="sr-only">Summer theme</span></button>
+              <button type="button" data-n="Autumn" style="--t:linear-gradient(170deg,#3a1e08 0%,#6b3a12 45%,#2a1606 100%)" aria-pressed="false">
+                <span class="sr-only">Autumn theme</span></button>
+              <button type="button" data-n="Winter" style="--t:linear-gradient(170deg,#0a1c2e 0%,#1e3a52 50%,#2e5a7a 100%)" aria-pressed="false">
+                <span class="sr-only">Winter theme</span></button>
+            </div>
           </div>
           <span class="theme-name" id="theme-name" aria-live="polite">Midnight</span>
         </div>
