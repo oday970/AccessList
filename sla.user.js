@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Case Status SLA Color Guard — Loader
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Loads the Case Status SLA Color Guard.
 // @author       Oday Emar
 // @match        https://scripts.cisco.com/app/quicker_csone/case/*
+// @match        https://scripts.cisco.com/app/quicker_backlog/*
 // @updateURL    https://casereview.cc/sla.user.js
 // @downloadURL  https://casereview.cc/sla.user.js
 // @grant        GM_setValue
@@ -16,13 +17,20 @@
 // text is not written out here. The guard talks to api.casereview.cc and
 // the SFDC proxy named below, and to nothing else.
 //
-// NOTE FOR FUTURE EDITS: this block deliberately grants no more than it
-// did in 1.0.0. Tampermonkey installs an update silently only while the
-// requested permissions are unchanged; ADDING a @grant or @connect makes
-// it show a confirmation window instead, which turns a silent update into
-// a support conversation with every user. 1.1.0 clears its pre-signing
-// cache by overwriting it rather than calling GM_deleteValue, purely to
-// avoid needing that grant.
+// NOTE FOR FUTURE EDITS: Tampermonkey installs an update silently only
+// while the requested permissions are unchanged; ADDING a @grant, a
+// @connect or a @match makes it show a confirmation window instead, which
+// turns a silent update into a support conversation with every user.
+// 1.1.0 went to some trouble to preserve that — it clears its pre-signing
+// cache by overwriting rather than calling GM_deleteValue, purely to avoid
+// needing that grant.
+//
+// 1.2.0 spends it anyway, once and knowingly: the backlog @match above is
+// the whole point of the release. MTTF now appears as a column on the
+// backlog list and the Reports tab, with a CSV export, and none of it can
+// run on a page this loader does not match. Users WILL see a permission
+// prompt on this update. Nothing else in this block changed, so the next
+// update is silent again.
 //
 // The guard itself talks to the SFDC proxy. Tampermonkey attributes that
 // request to THIS file once the code is eval'd here, so the grant has to
