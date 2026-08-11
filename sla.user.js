@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Case Status SLA Color Guard — Loader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.0
+// @version      1.2.1
 // @description  Loads the Case Status SLA Color Guard.
 // @author       Oday Emar
 // @match        https://scripts.cisco.com/app/quicker_csone/case/*
@@ -12,30 +12,6 @@
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @connect      casereview.cc
-// The wildcard grant for *.workers.dev hosts was removed in 1.0.1 — see
-// the longer note in loader.user.js, including why the directive's literal
-// text is not written out here. The guard talks to api.casereview.cc and
-// the SFDC proxy named below, and to nothing else.
-//
-// NOTE FOR FUTURE EDITS: Tampermonkey installs an update silently only
-// while the requested permissions are unchanged; ADDING a @grant, a
-// @connect or a @match makes it show a confirmation window instead, which
-// turns a silent update into a support conversation with every user.
-// 1.1.0 went to some trouble to preserve that — it clears its pre-signing
-// cache by overwriting rather than calling GM_deleteValue, purely to avoid
-// needing that grant.
-//
-// 1.2.0 spends it anyway, once and knowingly: the backlog @match above is
-// the whole point of the release. MTTF now appears as a column on the
-// backlog list and the Reports tab, with a CSV export, and none of it can
-// run on a page this loader does not match. Users WILL see a permission
-// prompt on this update. Nothing else in this block changed, so the next
-// update is silent again.
-//
-// The guard itself talks to the SFDC proxy. Tampermonkey attributes that
-// request to THIS file once the code is eval'd here, so the grant has to
-// live in the loader's metadata block, not in the fetched source — the
-// fetched source's own ==UserScript== header is inert.
 // @connect      quicker-sfdc-proxy.cisco.com
 // @run-at       document-start
 // ==/UserScript==
@@ -43,28 +19,22 @@
 (function () {
     'use strict';
 
-    // ---- CONFIG ----
     const API_BASE      = 'https://api.casereview.cc';
     const LOADER_SECRET = 'cra_a1b2c3d4e5f6g7h8';
     const CHECKED_KEY   = 'slaLoaderCheckedAt';
     const SHA_KEY       = 'slaLoaderCachedSha';
-    const CHECK_EVERY   = 60 * 60 * 1000;   // 1 hour
+    const CHECK_EVERY   = 60 * 60 * 1000;
 
-    // New in 1.1.0: holds { code, sig } rather than a bare code string.
     const CACHE_KEY     = 'slaLoaderSignedCache';
     const LEGACY_CACHE  = 'slaLoaderCachedCode';
 
     const SIG_HEADER    = 'x-cra-signature';
 
-    // Public half of the release signing key — the same pair that signs
-    // the review client. See the long note in loader.user.js for why this
-    // exists and why publishing it is safe.
     const PUBLIC_KEY_JWK = {
         kty: 'EC', crv: 'P-256',
         x: 's979RwgXLmn3pmEcZK9HlTLi14_o2PMx997xS7dUXOs',
         y: 'iiF4eFA8O_yCmSIs7Qe_F1B9Ugk4D1NcalaE4HrqOxY'
     };
-    // ----------------
 
     const get = (key, def) => { try { return GM_getValue(key, def); } catch (e) { return def; } };
     const set = (key, val) => { try { GM_setValue(key, val); } catch (e) {} };
@@ -86,8 +56,6 @@
         return verifyKey;
     }
 
-    // Fails closed on every error path: refusing to run is a broken
-    // feature, running unverified code is a compromised browser.
     async function verify(code, sigB64) {
         try {
             if (!code || !sigB64) return false;
@@ -103,9 +71,6 @@
         }
     }
 
-    // The guard only needs GM_xmlhttpRequest, but it is passed explicitly
-    // for the same reason the review loader does it: code run through
-    // new Function() does not inherit the sandbox's GM_* bindings.
     function runCode(code, sourceLabel) {
         try {
             const fn = new Function('GM_xmlhttpRequest', 'GM_setValue', 'GM_getValue', code);
@@ -122,8 +87,6 @@
         }
     }
 
-    // The only path to runCode. Verified on every run, cache included, so
-    // the cache does not have to be trusted.
     async function runVerified(entry, sourceLabel) {
         if (!entry || !(await verify(entry.code, entry.sig))) {
             console.error('[SLA Loader] REFUSED to run ' + sourceLabel +
@@ -160,8 +123,6 @@
         return false;
     }
 
-    // Verifies BEFORE caching, so a bad release cannot displace the last
-    // known-good copy.
     function fetchScript(reason) {
         GM_xmlhttpRequest({
             method: 'GET',
@@ -185,17 +146,12 @@
                 writeCache(resp.responseText, sig);
                 set(CHECKED_KEY, Date.now());
 
-                // Capture the sha from the ETag so the first revalidation
-                // after a cold start does not redownload unnecessarily.
-                // Cloudflare rewrites the Worker's strong ETag to a weak
-                // one (W/"<sha>") when it compresses, so the W/ prefix is
-                // tolerated here.
                 try {
                     const etag = /^etag:\s*(?:W\/)?"?([^"\r\n]+)"?/im.exec(resp.responseHeaders || '');
                     if (etag) set(SHA_KEY, etag[1]);
                 } catch (e) {}
 
-                runCode(resp.responseText, reason);   // already verified above
+                runCode(resp.responseText, reason);
             },
             onerror:   () => runFromCache('Network error'),
             ontimeout: () => runFromCache('Timed out')
@@ -213,9 +169,6 @@
             return;
         }
 
-        // One-time cleanup of the pre-1.1.0 unsigned cache. Overwritten
-        // rather than deleted: GM_deleteValue is not granted here, and
-        // adding that grant would make Tampermonkey prompt on update.
         if (get(LEGACY_CACHE, null)) {
             set(LEGACY_CACHE, '');
             console.log('[SLA Loader] Discarded the pre-signing cache; fetching a signed copy.');
@@ -224,22 +177,13 @@
         const cached    = readCache();
         const lastCheck = get(CHECKED_KEY, 0);
 
-        // First run on this machine: nothing to do but fetch. This is the one
-        // path where the guard starts later than document-start — it cannot
-        // colour a status that has already painted, so on a cold install the
-        // effect appears on the next page load rather than this one. Every
-        // user takes this path once, on upgrade to 1.1.0.
         if (!cached) { fetchScript('remote (cold)'); return; }
 
-        // Inside the hourly window: run instantly, no network at all.
         if (Date.now() - lastCheck < CHECK_EVERY) {
             await runVerified(cached, 'cache (fresh)');
             return;
         }
 
-        // Past the window: run the cache immediately anyway, then check for a
-        // new version in the background. The user never waits on the network;
-        // a change lands on the next page load.
         await runVerified(cached, 'cache (revalidating)');
 
         GM_xmlhttpRequest({
@@ -254,7 +198,7 @@
                 if (!meta || !meta.sha) return;
 
                 set(CHECKED_KEY, Date.now());
-                if (meta.sha === get(SHA_KEY, null)) return;   // unchanged
+                if (meta.sha === get(SHA_KEY, null)) return;
 
                 GM_xmlhttpRequest({
                     method: 'GET',

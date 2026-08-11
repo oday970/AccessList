@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cisco Case Review Assistant — Loader
 // @namespace    http://tampermonkey.net/
-// @version      0.30.0
+// @version      0.30.1
 // @description  Loads the Case Review Assistant script.
 // @author       Oday (odemar@cisco.com)
 // @match        https://scripts.cisco.com/app/quicker_csone/case/*
@@ -17,24 +17,6 @@
 // @grant        GM_setClipboard
 // @grant        GM_addValueChangeListener
 // @connect      casereview.cc
-// NOTE: the wildcard grant for *.workers.dev hosts was removed in 0.29.1.
-// It let the fetched client talk to EVERY host under that domain, which is
-// a broad exfiltration path for code this loader executes with GM_*
-// privileges and never verifies. Nothing needs it: cra.user.js builds
-// every URL from API_BASE = 'https://api.casereview.cc' (see its
-// LB_WORKER_URL). If the API ever moves back to such a hostname, add a
-// grant naming that exact host rather than the wildcard.
-//
-// The directive's literal text is deliberately not written out anywhere in
-// this block: metadata parsers differ on how strictly they anchor a
-// directive to the start of a line, and a commented-out grant that one
-// engine ignores and another honours is the worst of both.
-// TRANSITION GRANT — remove in a later version bump, after cutover.
-// Between publishing this loader and merging the new client, the Worker still
-// serves the OLD client, which fetches auth.json from raw.githubusercontent.com.
-// Tampermonkey attributes that request to THIS file, so without this grant
-// every user gets a permission prompt on every auth sync for the whole
-// ~24h propagation window. The new client never calls this host.
 // @connect      raw.githubusercontent.com
 // @run-at       document-idle
 // ==/UserScript==
@@ -42,44 +24,22 @@
 (function () {
     'use strict';
 
-    // ---- CONFIG ----
     const API_BASE      = 'https://api.casereview.cc';
     const LOADER_SECRET = 'cra_a1b2c3d4e5f6g7h8';
     const CHECKED_KEY   = 'craLoaderCheckedAt';
     const SHA_KEY       = 'craLoaderCachedSha';
-    const CHECK_EVERY   = 60 * 60 * 1000;   // 1 hour
+    const CHECK_EVERY   = 60 * 60 * 1000;
 
-    /* Cache key changed in 0.30.0. The old one held a bare code string
-       with no signature beside it; this one holds { code, sig }. A new
-       key rather than a format sniff on the old one, so there is no
-       chance of mistaking the first line of an unsigned script for a
-       signature. The old entry is deleted on first run. */
     const CACHE_KEY     = 'craLoaderSignedCache';
     const LEGACY_CACHE  = 'craLoaderCachedCode';
 
     const SIG_HEADER    = 'x-cra-signature';
 
-    /* Release signing key. PUBLIC half — safe to publish, which is the
-       point: it can verify a release but cannot create one.
-
-       This loader executes whatever the API returns, with GM_* powers,
-       inside an authenticated Cisco session. Before 0.30.0 nothing
-       checked WHO wrote that code, so anyone who could change what the
-       server returns -- via the GitHub repo, the GH_TOKEN, the
-       Cloudflare account, or the KV namespace -- could run code in every
-       reviewer's browser. Verifying here removes all four from the
-       trusted set: the private key lives offline and is never uploaded
-       anywhere, so a compromised server can at worst stop updates, not
-       forge one.
-
-       Rotating this key means republishing this file and waiting for it
-       to propagate, so it is not a routine operation. */
     const PUBLIC_KEY_JWK = {
         kty: 'EC', crv: 'P-256',
         x: 's979RwgXLmn3pmEcZK9HlTLi14_o2PMx997xS7dUXOs',
         y: 'iiF4eFA8O_yCmSIs7Qe_F1B9Ugk4D1NcalaE4HrqOxY'
     };
-    // ----------------
 
     const get = (key, def) => { try { return GM_getValue(key, def); } catch (e) { return def; } };
     const set = (key, val) => { try { GM_setValue(key, val); } catch (e) {} };
@@ -101,11 +61,6 @@
         return verifyKey;
     }
 
-    /* Any failure here -- bad signature, malformed base64, missing
-       WebCrypto -- returns false, and every caller treats false as "do
-       not run". Failing closed is the whole design: refusing to run is a
-       broken feature, running unverified code is a compromised browser
-       inside a Cisco case session. */
     async function verify(code, sigB64) {
         try {
             if (!code || !sigB64) return false;
@@ -123,7 +78,6 @@
 
     function runCode(code, sourceLabel) {
         try {
-            // Explicitly pass the GM_* functions so code run via new Function() can see them.
             const fn = new Function(
                 'GM_setValue', 'GM_getValue', 'GM_deleteValue', 'GM_listValues',
                 'GM_openInTab', 'GM_xmlhttpRequest', 'GM_setClipboard', 'GM_addValueChangeListener',
@@ -147,11 +101,6 @@
         }
     }
 
-    /* The only path to runCode. Verifying on EVERY run, including from
-       cache, is deliberate: it means the cache does not have to be
-       trusted. Anything able to write Tampermonkey storage still cannot
-       produce a signature, so a tampered cache is rejected rather than
-       executed. It costs about a millisecond. */
     async function runVerified(entry, sourceLabel) {
         if (!entry || !(await verify(entry.code, entry.sig))) {
             console.error('[CRA Loader] REFUSED to run ' + sourceLabel +
@@ -188,10 +137,6 @@
         return false;
     }
 
-    /* Fetches, verifies, and only then caches. Order matters: caching
-       before verifying would persist whatever the server sent, and every
-       later page load would re-reject it while the last good copy was
-       already gone. */
     function fetchScript(reason) {
         GM_xmlhttpRequest({
             method: 'GET',
@@ -206,9 +151,6 @@
 
                 const sig = headerOf(resp, SIG_HEADER);
                 if (!(await verify(resp.responseText, sig))) {
-                    // The last known-good cached copy is left untouched
-                    // and used instead, so a bad or unsigned release
-                    // degrades to "no update" rather than "no script".
                     console.error('[CRA Loader] Downloaded script FAILED signature verification. ' +
                                   'It was not cached and not run.');
                     runFromCache('Signature check failed');
@@ -218,20 +160,12 @@
                 writeCache(resp.responseText, sig);
                 set(CHECKED_KEY, Date.now());
 
-                // /script responds with an ETag containing the sha (see
-                // worker/src/routes/client.js). Capture it so a cold start
-                // records the sha it just fetched; without this the first
-                // revalidation always sees a null SHA_KEY, treats the
-                // script as changed, and re-downloads it for nothing.
-                // Cloudflare rewrites the strong ETag to a weak one
-                // (W/"<sha>") when it compresses, so the prefix is
-                // tolerated here.
                 try {
                     const etag = /^etag:\s*(?:W\/)?"?([^"\r\n]+)"?/im.exec(resp.responseHeaders || '');
                     if (etag) set(SHA_KEY, etag[1]);
                 } catch (e) {}
 
-                runCode(resp.responseText, reason);   // already verified above
+                runCode(resp.responseText, reason);
             },
             onerror:   () => runFromCache('Network error'),
             ontimeout: () => runFromCache('Timed out')
@@ -243,15 +177,12 @@
             console.error('[CRA Loader] GM_xmlhttpRequest unavailable.');
             return;
         }
-        // No WebCrypto means no way to check what we are about to run.
-        // Refuse rather than fall back to running it unverified.
         if (typeof crypto === 'undefined' || !crypto.subtle) {
             console.error('[CRA Loader] WebCrypto unavailable — cannot verify the script, ' +
                           'so nothing was run.');
             return;
         }
 
-        // One-time cleanup of the pre-0.30.0 unsigned cache.
         if (get(LEGACY_CACHE, null)) {
             try { GM_deleteValue(LEGACY_CACHE); } catch (e) {}
             console.log('[CRA Loader] Discarded the pre-signing cache; fetching a signed copy.');
@@ -260,22 +191,13 @@
         const cached    = readCache();
         const lastCheck = get(CHECKED_KEY, 0);
 
-        // No verified copy — nothing to run but a fresh fetch. This is
-        // also the path every user takes once, on upgrade to 0.30.0.
         if (!cached) { fetchScript('remote (cold)'); return; }
 
-        // Inside the hourly window: run instantly, no network at all. This is
-        // what keeps the Worker under 100,000 requests/day — fetching on
-        // every page load costs ~21,000/day at 700 users, and it also removes
-        // a blocking round-trip from the case page.
         if (Date.now() - lastCheck < CHECK_EVERY) {
             await runVerified(cached, 'cache (fresh)');
             return;
         }
 
-        // Past the window: run the cache immediately anyway, then check for a
-        // new version in the background. The user never waits on the network;
-        // a change lands on the next page load.
         await runVerified(cached, 'cache (revalidating)');
 
         GM_xmlhttpRequest({
@@ -290,7 +212,7 @@
                 if (!meta || !meta.sha) return;
 
                 set(CHECKED_KEY, Date.now());
-                if (meta.sha === get(SHA_KEY, null)) return;   // unchanged
+                if (meta.sha === get(SHA_KEY, null)) return;
 
                 GM_xmlhttpRequest({
                     method: 'GET',
