@@ -906,7 +906,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
         straight onto the case page. Standalone, no allow-list, install it on its own.</p>
         <p class="lede">Like the assistant, it installs as a small loader that keeps itself current,
         so you install once and never chase a version again. Currently
-        <span class="sla-version">1.7.0</span>, and
+        <span class="sla-version">1.8.0</span>, and
         <a href="#download" style="text-underline-offset:3px">downloadable just below</a>.</p>
       </div>
       <div class="card rise">
@@ -927,9 +927,12 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
        version number per tool to keep true instead of two. The numbers
        shown are the APP versions, not the loaders' - .cra-version and
        .sla-version are filled live from api.casereview.cc by the sync
-       at the foot of this file, which is why they carry no hard-coded
-       fallback worth trusting. The loader version is deliberately not
-       surfaced here: it is an implementation detail, and what a reader
+       at the foot of this file. Their hard-coded values are fallbacks for
+       a failed fetch, so keep them roughly current, but nothing depends on
+       them being exact. (.cra-loader-version, in the colophon, is filled
+       the same way but from the loader file itself rather than the API.)
+       The loader version is deliberately not surfaced here: it is an
+       implementation detail, and what a reader
        actually runs is the app the loader fetches. -->
   <section id="download">
     <div class="wrap">
@@ -962,7 +965,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
 
         <div class="card rise">
           <h3>MTTF / SLA Color Guard</h3>
-          <span class="dl-ver">Version <span class="sla-version">1.7.0</span> · updates itself</span>
+          <span class="dl-ver">Version <span class="sla-version">1.8.0</span> · updates itself</span>
           <p>Colours the case status dropdown by how much SLA time each option actually costs you,
           and draws a mean-time-to-failure histogram beside it.</p>
           <p class="dl-gate">
@@ -996,8 +999,8 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
       <dl>
         <dt>Maintainer</dt><dd>Oday Emar - <a href="mailto:odemar@cisco.com">odemar@cisco.com</a></dd>
         <dt>Assistant</dt><dd><span class="cra-version">0.33.0</span> - updates itself</dd>
-        <dt>Loader</dt><dd>0.29.0 - <a href="/loader.user.js">source</a></dd>
-        <dt>SLA Guard</dt><dd><span class="sla-version">1.7.0</span> - <a href="/sla.user.js">loader</a></dd>
+        <dt>Loader</dt><dd><span class="cra-loader-version">0.30.1</span> - <a href="/loader.user.js">source</a></dd>
+        <dt>SLA Guard</dt><dd><span class="sla-version">1.8.0</span> - <a href="/sla.user.js">loader</a></dd>
         <dt>Runs on</dt><dd>The case page and the review page</dd>
         <dt>Access</dt><dd>Allow-list, by request</dd>
       </dl>
@@ -1388,6 +1391,37 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
               el.textContent = meta.version;
             });
           }
+        })
+        .catch(function(){});
+    });
+
+    /* ---- loader version sync. The app versions above come from the API,
+           but a loader's version lives nowhere except its own
+           ==UserScript== block: the Worker never sees these files, they
+           are served from this origin by Pages. So read the number out of
+           the file itself and the file becomes its own source of truth.
+
+           This exists because the hard-coded number drifted. It sat at
+           0.29.0 on this page while users were installing 0.30.1, and
+           nothing catches that — a stale version string looks exactly like
+           a correct one. Same-origin, so no CORS and no key; fetch() does
+           not trigger a userscript install prompt the way navigating to a
+           .user.js does. Falls back to the markup silently. ---- */
+    var loaders = [
+      ["/loader.user.js", ".cra-loader-version"],
+      ["/sla.user.js",    ".sla-loader-version"]
+    ];
+    loaders.forEach(function(pair){
+      if (!document.querySelector(pair[1])) return;
+      fetch(pair[0])
+        .then(function(r){ return r.ok ? r.text() : null; })
+        .then(function(src){
+          if (!src) return;
+          var m = /@version\s+v?([0-9][\w.-]*)/.exec(src);
+          if (!m) return;
+          document.querySelectorAll(pair[1]).forEach(function(el){
+            el.textContent = m[1];
+          });
         })
         .catch(function(){});
     });
