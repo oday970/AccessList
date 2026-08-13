@@ -254,10 +254,11 @@ async function loadUsers() {
   // '' (the "All workgroups" option) sends 0, which the server reads as
   // "every group" rather than as a group that happens to have id 0.
   const wg = encodeURIComponent($('#user-group-filter').value || '0');
+  const status = encodeURIComponent($('#user-status-filter').value || 'all');
   const tbody = $('#user-table tbody');
   let data;
   try {
-    data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
+    data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&status=${status}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   } catch (err) {
     clearChildren(tbody);
     stateRow(tbody, 7, 'Could not load', 'The list is unavailable, not empty.');
@@ -270,8 +271,13 @@ async function loadUsers() {
     // A filtered empty result is not the same as an empty allow-list, and
     // saying "No users yet" while a filter is on reads as data loss.
     const filtered = ($('#user-group-filter').value || '0') !== '0';
-    if (q || filtered) {
-      const by = [q ? 'that search' : null, filtered ? 'that workgroup' : null].filter(Boolean).join(' and ');
+    const byStatus = ($('#user-status-filter').value || 'all') !== 'all';
+    if (q || filtered || byStatus) {
+      const by = [
+        q ? 'that search' : null,
+        filtered ? 'that workgroup' : null,
+        byStatus ? 'that access state' : null
+      ].filter(Boolean).join(' and ');
       stateRow(tbody, 7, 'No match', 'Nobody matches ' + by + '.');
     } else {
       stateRow(tbody, 7, 'No users yet', 'Add the first user to the allow-list.');
@@ -329,20 +335,42 @@ async function loadUsers() {
     editBtn.textContent = 'Edit';
     editBtn.setAttribute('aria-label', 'Edit ' + u.username);
     editBtn.onclick = () => openUserDialog(u);
-    const revokeBtn = document.createElement('button');
-    revokeBtn.className = 'danger';
-    revokeBtn.textContent = 'Revoke';
-    revokeBtn.setAttribute('aria-label', 'Revoke ' + u.username);
-    revokeBtn.onclick = async () => {
-      if (!confirm(`Revoke access for ${u.username}? Their leaderboard history is kept.`)) return;
-      try {
-        await api('/admin/users/' + encodeURIComponent(u.username), { method: 'DELETE' });
-        loadUsers();
-        loadStats();
-      } catch (err) {
-        handleError(err, 'Revoking ' + u.username);
-      }
-    };
+    // Revoke is reversible, so the row has to offer the way back. It used to
+    // render an unconditional red "Revoke" — a no-op on an already-revoked
+    // user — which left Edit → tick Authorized → Save as the only route back,
+    // and nothing on the row hinted that it existed.
+    const accessBtn = document.createElement('button');
+    if (u.authorized) {
+      accessBtn.className = 'danger';
+      accessBtn.textContent = 'Revoke';
+      accessBtn.setAttribute('aria-label', 'Revoke ' + u.username);
+      accessBtn.onclick = async () => {
+        if (!confirm(`Revoke access for ${u.username}? Their leaderboard history is kept.`)) return;
+        try {
+          await api('/admin/users/' + encodeURIComponent(u.username), { method: 'DELETE' });
+          loadUsers();
+          loadStats();
+        } catch (err) {
+          handleError(err, 'Revoking ' + u.username);
+        }
+      };
+    } else {
+      // No confirm(): restoring access is the reversible direction, and a
+      // dialog on the safe action trains people to click through the one on
+      // the dangerous one.
+      accessBtn.className = 'primary';
+      accessBtn.textContent = 'Restore';
+      accessBtn.setAttribute('aria-label', 'Restore access for ' + u.username);
+      accessBtn.onclick = async () => {
+        try {
+          await api('/admin/users/' + encodeURIComponent(u.username) + '/restore', { method: 'POST' });
+          loadUsers();
+          loadStats();
+        } catch (err) {
+          handleError(err, 'Restoring ' + u.username);
+        }
+      };
+    }
     // Revoke is reversible and keeps the row; Delete removes it and keeps
     // the history. Both are offered because they answer different
     // questions — "they left the team" versus "they should never have
@@ -355,7 +383,7 @@ async function loadUsers() {
 
     tdActions.appendChild(editBtn);
     tdActions.appendChild(document.createTextNode(' '));
-    tdActions.appendChild(revokeBtn);
+    tdActions.appendChild(accessBtn);
     tdActions.appendChild(document.createTextNode(' '));
     tdActions.appendChild(deleteBtn);
 
@@ -792,7 +820,10 @@ $('#next-page').onclick = () => { page++; loadUsers(); };
 
 // Changing the filter resets to page 0: staying on page 3 of an unfiltered
 // list after narrowing to a five-person group shows an empty table.
+// Both reset to page 0: staying on page 3 of an unfiltered list after
+// narrowing to two rows shows an empty table that reads as data loss.
 $('#user-group-filter').onchange = () => { page = 0; loadUsers(); };
+$('#user-status-filter').onchange = () => { page = 0; loadUsers(); };
 
 $('#refresh-users-btn').onclick = async () => {
   const btn = $('#refresh-users-btn');
