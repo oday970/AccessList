@@ -123,6 +123,10 @@ body>*{position:relative;z-index:1}
 h1,h2{font-weight:800;letter-spacing:-.022em;line-height:1.15;margin:0}
 h1{font-size:1.4rem}
 h2{font-size:1.2rem;margin:28px 0 13px;letter-spacing:-.024em}
+/* Section heading inside a tab that already has an h2 (Content holds both
+   the global list and the reviewer-saved one). Quieter than h2 so the two
+   levels read as nested rather than as two equal sections. */
+h3{font-weight:700;font-size:.95rem;letter-spacing:-.015em;margin:22px 0 9px;color:var(--mut-t)}
 h2 .s{color:var(--accent2)}
 h2 .c{color:var(--accent2)}
 
@@ -337,6 +341,11 @@ dialog legend{
 }
 .ach-list label:hover{background:var(--surf2)}
 .ach-list input{flex:none}
+
+/* The global template editor is the row's content, not a control beside it,
+   so it fills the cell rather than sitting at the default input width. */
+.tpl-edit{width:100%;font-size:13px}
+#tpl-new{flex:1;min-width:260px}
 .ach-list .ach-icon{font-size:14px;line-height:1}
 
 /* wrap, so the three-button stats dialog does not squeeze its labels on
