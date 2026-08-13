@@ -57,6 +57,12 @@
       <input id="user-search" type="search" placeholder="Search username…">
       <label for="user-group-filter" class="sr-only">Filter by workgroup</label>
       <select id="user-group-filter"></select>
+      <label for="user-status-filter" class="sr-only">Filter by access</label>
+      <select id="user-status-filter">
+        <option value="all">All access</option>
+        <option value="active">Active only</option>
+        <option value="revoked">Revoked only</option>
+      </select>
       <button id="refresh-users-btn">Refresh</button>
       <span class="spacer"></span>
       <button id="add-user-btn" class="primary">Add user</button>
