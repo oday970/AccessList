@@ -177,6 +177,40 @@
         <tbody></tbody>
       </table>
     </div>
+
+    <h2>Login greetings</h2>
+    <p class="hint">The banner shown when the assistant opens. One global pool — everyone sees
+    these. Use <code>{name}</code> where the reviewer's name should appear. Times are in each
+    reviewer's <b>own local timezone</b>, and a window may wrap midnight (e.g. 21:00–05:00).</p>
+
+    <div class="toolbar">
+      <label for="greet-new" class="sr-only">New greeting</label>
+      <input id="greet-new" maxlength="200" placeholder="e.g. Good morning, {name} ☀️">
+      <label for="greet-preset" class="sr-only">Time window</label>
+      <select id="greet-preset">
+        <option value="0-1440">All day</option>
+        <option value="300-720" selected>Morning 05:00–12:00</option>
+        <option value="720-1020">Afternoon 12:00–17:00</option>
+        <option value="1020-1260">Evening 17:00–21:00</option>
+        <option value="1260-300">Night 21:00–05:00</option>
+      </select>
+      <button id="greet-add-btn" class="primary">Add</button>
+      <span class="spacer"></span>
+      <span id="greet-preview" class="hint" aria-live="polite"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="greet-table">
+        <caption>Greetings — edits save as you make them</caption>
+        <thead><tr>
+          <th scope="col">Message</th>
+          <th scope="col">From</th>
+          <th scope="col">To</th>
+          <th scope="col">On</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
   <section id="tab-themes" class="tab" role="tabpanel" aria-labelledby="tab-btn-themes" tabindex="0" hidden>

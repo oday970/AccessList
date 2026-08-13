@@ -345,6 +345,12 @@ dialog legend{
 /* The global template editor is the row's content, not a control beside it,
    so it fills the cell rather than sitting at the default input width. */
 .tpl-edit{width:100%;font-size:13px}
+
+/* A disabled greeting. The existing `revoked` style is a td selector, so it
+   does not reach a row-level class -- and a struck-through row of editable
+   inputs reads as broken rather than as off. Dim the row instead, and leave
+   the controls legible: turning it back on is the point. */
+tr.revoked > td{opacity:.55}
 #tpl-new{flex:1;min-width:260px}
 .ach-list .ach-icon{font-size:14px;line-height:1}
 

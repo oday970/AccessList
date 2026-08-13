@@ -720,6 +720,120 @@ async function loadTemplates() {
   }
 }
 
+/* ---- login greetings --------------------------------------------
+   Windows are minutes past LOCAL midnight, and the <input type="time">
+   pair is just a friendlier face on those two numbers. 24:00 is spelled
+   1440 and cannot be typed into a time input, so it round-trips through
+   '24:00' explicitly -- without that, "all day" saves as 0-0 and the
+   greeting never shows. */
+const minToTime = (m) => {
+  const n = Math.max(0, Math.min(1440, Number(m) || 0));
+  if (n === 1440) return '24:00';
+  return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+};
+const timeToMin = (v) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || ''));
+  if (!m) return null;
+  const mins = Number(m[1]) * 60 + Number(m[2]);
+  return mins >= 0 && mins <= 1440 ? mins : null;
+};
+
+async function loadGreetings() {
+  const data = await api('/admin/greetings');
+  const tbody = $('#greet-table tbody');
+  clearChildren(tbody);
+
+  if (!(data.greetings || []).length) {
+    stateRow(tbody, 5, 'No greetings', 'The assistant falls back to its built-in messages.');
+    return;
+  }
+
+  for (const g of data.greetings) {
+    const tr = document.createElement('tr');
+    if (!g.enabled) tr.className = 'revoked';
+
+    // One saver for the whole row: the API takes a row at a time, and
+    // sending only the changed field would blank the others.
+    const save = async (patch, revert) => {
+      try {
+        await api('/admin/greetings', {
+          method: 'POST',
+          body: JSON.stringify({ greetings: [{
+            id: g.id, body: g.body, start_min: g.start_min,
+            end_min: g.end_min, enabled: g.enabled, sort: g.sort, ...patch
+          }] })
+        });
+        Object.assign(g, patch);
+      } catch (err) {
+        if (revert) revert();
+        handleError(err, 'Saving the greeting');
+      }
+    };
+
+    const tdBody = document.createElement('td');
+    const bodyInput = document.createElement('input');
+    bodyInput.value = g.body;
+    bodyInput.maxLength = 200;
+    bodyInput.className = 'tpl-edit';
+    bodyInput.setAttribute('aria-label', 'Greeting message');
+    bodyInput.onchange = () => {
+      const next = bodyInput.value.trim();
+      if (!next || next === g.body) { bodyInput.value = g.body; return; }
+      save({ body: next }, () => { bodyInput.value = g.body; });
+    };
+    tdBody.appendChild(bodyInput);
+
+    const timeCell = (key) => {
+      const td = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'time';
+      input.value = minToTime(g[key]);
+      input.setAttribute('aria-label', key === 'start_min' ? 'Window start' : 'Window end');
+      input.onchange = () => {
+        const mins = timeToMin(input.value);
+        if (mins === null) { input.value = minToTime(g[key]); return; }
+        save({ [key]: mins }, () => { input.value = minToTime(g[key]); });
+      };
+      td.appendChild(input);
+      return td;
+    };
+
+    const tdOn = document.createElement('td');
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.checked = !!g.enabled;
+    toggle.setAttribute('aria-label', 'Enabled');
+    toggle.onchange = async () => {
+      const want = toggle.checked ? 1 : 0;
+      await save({ enabled: want }, () => { toggle.checked = !toggle.checked; });
+      tr.className = g.enabled ? '' : 'revoked';
+    };
+    tdOn.appendChild(toggle);
+
+    const tdActs = document.createElement('td');
+    tdActs.className = 'acts';
+    const del = document.createElement('button');
+    del.className = 'danger';
+    del.textContent = 'Delete';
+    del.setAttribute('aria-label', 'Delete this greeting');
+    del.onclick = async () => {
+      if (!confirm('Delete this greeting?')) return;
+      try {
+        await api('/admin/greetings/' + g.id, { method: 'DELETE' });
+        loadGreetings();
+      } catch (err) { handleError(err, 'Deleting the greeting'); }
+    };
+    tdActs.appendChild(del);
+
+    tr.appendChild(tdBody);
+    tr.appendChild(timeCell('start_min'));
+    tr.appendChild(timeCell('end_min'));
+    tr.appendChild(tdOn);
+    tr.appendChild(tdActs);
+    tbody.appendChild(tr);
+  }
+}
+
 /* ---- themes ---- */
 async function loadThemes() {
   const data = await api('/admin/themes');
@@ -915,7 +1029,10 @@ function selectTab(btn) {
   document.querySelectorAll('.tab').forEach((s) => { s.hidden = s.id !== 'tab-' + btn.dataset.tab; });
   if (btn.dataset.tab === 'groups') loadGroups();
   if (btn.dataset.tab === 'board') loadBoard();
-  if (btn.dataset.tab === 'content') loadTemplates().catch((err) => handleError(err, 'Loading templates', () => loadTemplates().catch(() => {})));
+  if (btn.dataset.tab === 'content') {
+    loadTemplates().catch((err) => handleError(err, 'Loading templates', () => loadTemplates().catch(() => {})));
+    loadGreetings().catch((err) => handleError(err, 'Loading greetings'));
+  }
   if (btn.dataset.tab === 'themes') loadThemes().catch((err) => handleError(err, 'Loading themes', () => loadThemes().catch(() => {})));
   if (btn.dataset.tab === 'audit') loadAudit().catch((err) => handleError(err, 'Loading the audit log'));
 }
@@ -968,7 +1085,40 @@ $('#tpl-add-btn').onclick = addGlobalTemplate;
 $('#tpl-new').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); addGlobalTemplate(); }
 });
-$('#tpl-refresh-btn').onclick = () => loadTemplates().catch((err) => handleError(err, 'Refreshing templates'));
+$('#tpl-refresh-btn').onclick = () => {
+  loadTemplates().catch((err) => handleError(err, 'Refreshing templates'));
+  loadGreetings().catch((err) => handleError(err, 'Refreshing greetings'));
+};
+
+// Live preview of {name} substitution, so an admin can see the result
+// before saving rather than discovering the token did not take.
+const renderGreetPreview = () => {
+  const raw = $('#greet-new').value.trim();
+  $('#greet-preview').textContent = raw
+    ? 'Preview: ' + raw.split('{name}').join('odemar')
+    : '';
+};
+$('#greet-new').oninput = renderGreetPreview;
+
+$('#greet-add-btn').onclick = async () => {
+  const input = $('#greet-new');
+  const body = input.value.trim();
+  if (!body) return;
+  const [start, end] = $('#greet-preset').value.split('-').map(Number);
+  try {
+    await api('/admin/greetings', {
+      method: 'POST',
+      body: JSON.stringify({ greetings: [{ body, start_min: start, end_min: end, enabled: 1 }] })
+    });
+    input.value = '';
+    renderGreetPreview();
+    loadGreetings();
+  } catch (err) {
+    // Text is kept on failure so an over-length greeting can be shortened
+    // rather than retyped.
+    handleError(err, 'Adding the greeting');
+  }
+};
 // Same 250ms settle as #user-search above, and its own timer so typing in
 // one filter cannot cancel the other's pending load.
 let tplFilterTimer = null;
