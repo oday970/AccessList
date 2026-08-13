@@ -43,15 +43,30 @@
   </div>
 
   <nav id="tabs" role="tablist" aria-label="Admin sections">
-    <button role="tab" id="tab-btn-users"  aria-selected="true"  aria-controls="tab-users"  data-tab="users">Users</button>
+    <button role="tab" id="tab-btn-overview" aria-selected="true" aria-controls="tab-overview" data-tab="overview">Overview</button>
+    <button role="tab" id="tab-btn-users"  aria-selected="false" aria-controls="tab-users"  data-tab="users" tabindex="-1">Users</button>
     <button role="tab" id="tab-btn-groups" aria-selected="false" aria-controls="tab-groups" data-tab="groups" tabindex="-1">Groups</button>
     <button role="tab" id="tab-btn-board"  aria-selected="false" aria-controls="tab-board"  data-tab="board"  tabindex="-1">Leaderboard</button>
     <button role="tab" id="tab-btn-content" aria-selected="false" aria-controls="tab-content" data-tab="content" tabindex="-1">Content</button>
     <button role="tab" id="tab-btn-themes" aria-selected="false" aria-controls="tab-themes" data-tab="themes" tabindex="-1">Themes</button>
     <button role="tab" id="tab-btn-audit"  aria-selected="false" aria-controls="tab-audit"  data-tab="audit"  tabindex="-1">Audit</button>
+    <button role="tab" id="tab-btn-settings" aria-selected="false" aria-controls="tab-settings" data-tab="settings" tabindex="-1">Settings</button>
   </nav>
 
-  <section id="tab-users" class="tab" role="tabpanel" aria-labelledby="tab-btn-users" tabindex="0">
+  <section id="tab-overview" class="tab" role="tabpanel" aria-labelledby="tab-btn-overview" tabindex="0">
+    <h2>Overview</h2>
+    <div id="ov-cards" class="ov-grid"></div>
+    <h3>Reviews per day — last 14 days</h3>
+    <div id="ov-trend" class="ov-trend"></div>
+    <h3>Recent admin activity</h3>
+    <div class="table-wrap">
+      <table id="ov-actions"><caption>Latest changes made in this panel</caption>
+        <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
+        <tbody></tbody></table>
+    </div>
+  </section>
+
+  <section id="tab-users" class="tab" role="tabpanel" aria-labelledby="tab-btn-users" tabindex="0" hidden>
     <h2 class="sr-only">Users</h2>
     <div class="toolbar">
       <label for="user-search" class="sr-only">Search username</label>
@@ -69,16 +84,29 @@
       <button id="add-user-btn" class="primary">Add user</button>
       <button id="bulk-btn">Bulk add</button>
     </div>
+    <div class="toolbar bulk-bar" id="bulk-bar" hidden>
+      <span id="bulk-count" aria-live="polite"></span>
+      <label for="bulk-move-group" class="sr-only">Move selected to workgroup</label>
+      <select id="bulk-move-group"></select>
+      <button id="bulk-move-btn">Move</button>
+      <button id="bulk-restore-btn">Restore</button>
+      <button id="bulk-revoke-btn" class="danger">Revoke</button>
+      <button id="bulk-delete-btn" class="danger">Delete</button>
+      <span class="spacer"></span>
+      <button id="bulk-clear-btn">Clear selection</button>
+    </div>
     <div class="table-wrap">
       <table id="user-table">
         <caption>Allow-list — who can use the assistant</caption>
         <thead><tr>
+          <th scope="col"><input type="checkbox" id="select-all" aria-label="Select all on this page"></th>
           <th scope="col">Username</th>
           <th scope="col">Access</th>
           <th scope="col">Workgroup</th>
           <th scope="col">Rainbow</th>
           <th scope="col">Themes</th>
           <th scope="col">Templates</th>
+          <th scope="col">Last seen</th>
           <th scope="col">Note</th>
           <th scope="col"><span class="sr-only">Actions</span></th>
         </tr></thead>
@@ -226,6 +254,18 @@
     <div id="theme-seasonal" class="theme-list"></div>
   </section>
 
+  <section id="tab-settings" class="tab" role="tabpanel" aria-labelledby="tab-btn-settings" tabindex="0" hidden>
+    <h2>Settings</h2>
+    <p class="hint">Global values the assistant reads at startup. The server accepts a fixed set of
+    keys (<code>defaultTheme</code>, <code>seasons</code>) — arbitrary keys are rejected, so this
+    lists what exists rather than offering to invent new ones. Edits save as you make them.</p>
+    <div class="table-wrap">
+      <table id="settings-table"><caption>Stored settings</caption>
+        <thead><tr><th scope="col">Key</th><th scope="col">Value</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody></tbody></table>
+    </div>
+  </section>
+
   <section id="tab-audit" class="tab" role="tabpanel" aria-labelledby="tab-btn-audit" tabindex="0" hidden>
     <h2>Audit</h2>
     <p class="hint-strong">Refused writes. This table should stay near-empty; entries mean malformed or forged requests.</p>
@@ -234,6 +274,16 @@
       <button id="export-audit-btn">Export CSV</button>
       <span class="spacer"></span>
       <button id="clear-audit-btn" class="danger">Clear log</button>
+    </div>
+    <h2>Admin actions</h2>
+    <p class="hint">What was changed in this panel. There is a single admin password, so this
+    records <b>what</b> was done, not <b>who</b> did it.</p>
+    <div class="table-wrap">
+      <table id="admin-actions-table"><caption>Admin action log</caption>
+        <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
+        <tbody></tbody></table>
+    </div>
+    <div class="toolbar">
     </div>
     <div class="table-wrap">
       <table id="audit-table">
@@ -278,6 +328,9 @@
     <h2 id="delete-dialog-title">Delete user</h2>
     <p class="hint">Removes them from the allow-list. Their review history, achievements and
     standing are <b>kept</b>, so re-adding the same username restores everything.</p>
+    <label>Type <b><span id="f-delete-name"></span></b> to confirm
+      <input id="f-delete-confirm" autocomplete="off" placeholder="username">
+    </label>
     <fieldset>
       <legend>Their leaderboard entry</legend>
       <label class="inline"><input type="radio" name="board" id="f-board-hide" value="hide" checked>
@@ -287,7 +340,7 @@
     </fieldset>
     <menu>
       <button type="submit" value="cancel" formnovalidate id="f-delete-cancel">Cancel</button>
-      <button type="submit" value="save" id="f-delete-save" class="danger">Delete</button>
+      <button type="submit" value="save" id="f-delete-save" class="danger" disabled>Delete</button>
     </menu>
   </form>
 </dialog>

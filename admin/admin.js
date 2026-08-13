@@ -121,6 +121,7 @@ async function refreshGroups() {
   groups = data.workgroups || [];
   fillGroupFilter();
   fillBoardFilter();
+  fillGroupSelect($('#bulk-move-group'), null);
   return groups;
 }
 
@@ -249,6 +250,75 @@ async function loadGroups() {
   }
 }
 
+
+/* ---- Phase 4: last seen ------------------------------------------
+   user_meta.updated_at is written on every push and was never surfaced.
+   null means the reviewer has never pushed at all -- rendered as "never"
+   rather than 0 (which formats as 1 Jan 1970) or today (which would hide
+   exactly the dormant account this column exists to find). */
+const DAY_MS = 86400000;
+const INACTIVE_DAYS = 30;
+
+function lastSeenCell(ts) {
+  const td = document.createElement('td');
+  if (!ts) {
+    const s = document.createElement('span');
+    s.className = 'flag no';
+    s.textContent = 'never';
+    td.appendChild(s);
+    return td;
+  }
+  const days = Math.floor((Date.now() - ts) / DAY_MS);
+  const label = days <= 0 ? 'today' : days === 1 ? 'yesterday' : days + 'd ago';
+  const s = document.createElement('span');
+  s.textContent = label;
+  s.title = new Date(ts).toLocaleString();
+  td.appendChild(s);
+  if (days >= INACTIVE_DAYS) {
+    td.appendChild(document.createTextNode(' '));
+    const chip = document.createElement('span');
+    chip.className = 'pill off';
+    chip.textContent = 'Inactive ' + INACTIVE_DAYS + 'd+';
+    td.appendChild(chip);
+  }
+  return td;
+}
+
+/* ---- Phase 5: bulk selection --------------------------------------
+   Cleared on every reload, and deliberately not carried across pages: a
+   selection you cannot see is a selection you cannot check before
+   pressing Revoke. */
+let selected = new Set();
+
+function syncBulkBar() {
+  const bar = $('#bulk-bar');
+  bar.hidden = selected.size === 0;
+  $('#bulk-count').textContent = selected.size + ' selected';
+  const boxes = Array.from(document.querySelectorAll('.row-select'));
+  const all = boxes.length > 0 && boxes.every((b) => b.checked);
+  $('#select-all').checked = all;
+  $('#select-all').indeterminate = !all && selected.size > 0;
+}
+
+async function runBulk(action, extra) {
+  const usernames = Array.from(selected);
+  if (!usernames.length) return;
+  try {
+    const r = await api('/admin/users/bulk-action', {
+      method: 'POST', body: JSON.stringify({ usernames, action, ...(extra || {}) })
+    });
+    // Reported rather than assumed: the server skips names that no longer
+    // exist, so "2 selected" and "2 changed" are not the same claim.
+    alert(`${action}: ${r.affected} of ${r.requested} users changed.`);
+    selected = new Set();
+    loadUsers();
+    loadGroups().catch(() => {});
+    loadStats();
+  } catch (err) {
+    handleError(err, 'Bulk ' + action);
+  }
+}
+
 async function loadUsers() {
   const q = encodeURIComponent($('#user-search').value.trim());
   // '' (the "All workgroups" option) sends 0, which the server reads as
@@ -261,11 +331,12 @@ async function loadUsers() {
     data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&status=${status}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   } catch (err) {
     clearChildren(tbody);
-    stateRow(tbody, 8, 'Could not load', 'The list is unavailable, not empty.');
+    stateRow(tbody, 10, 'Could not load', 'The list is unavailable, not empty.');
     handleError(err, 'Loading users', () => loadUsers());
     return;
   }
   clearChildren(tbody);
+  selected = new Set();
 
   if (!data.users.length) {
     // A filtered empty result is not the same as an empty allow-list, and
@@ -278,14 +349,25 @@ async function loadUsers() {
         filtered ? 'that workgroup' : null,
         byStatus ? 'that access state' : null
       ].filter(Boolean).join(' and ');
-      stateRow(tbody, 8, 'No match', 'Nobody matches ' + by + '.');
+      stateRow(tbody, 10, 'No match', 'Nobody matches ' + by + '.');
     } else {
-      stateRow(tbody, 8, 'No users yet', 'Add the first user to the allow-list.');
+      stateRow(tbody, 10, 'No users yet', 'Add the first user to the allow-list.');
     }
   }
 
   for (const u of data.users) {
     const tr = document.createElement('tr');
+
+    const tdPick = document.createElement('td');
+    const pick = document.createElement('input');
+    pick.type = 'checkbox';
+    pick.className = 'row-select';
+    pick.setAttribute('aria-label', 'Select ' + u.username);
+    pick.onchange = () => {
+      if (pick.checked) selected.add(u.username); else selected.delete(u.username);
+      syncBulkBar();
+    };
+    tdPick.appendChild(pick);
 
     const tdUser = document.createElement('td');
     tdUser.textContent = u.username;
@@ -326,6 +408,7 @@ async function loadUsers() {
     const tdRainbow = flagCell(u.rainbow);
     const tdThemes = flagCell(u.themes);
     const tdTemplates = flagCell(u.templates);
+    const tdLastSeen = lastSeenCell(u.last_seen);
 
     const tdNote = document.createElement('td');
     tdNote.textContent = u.note || '';
@@ -388,16 +471,20 @@ async function loadUsers() {
     tdActions.appendChild(document.createTextNode(' '));
     tdActions.appendChild(deleteBtn);
 
+    tr.appendChild(tdPick);
     tr.appendChild(tdUser);
     tr.appendChild(tdAccess);
     tr.appendChild(tdGroup);
     tr.appendChild(tdRainbow);
     tr.appendChild(tdThemes);
     tr.appendChild(tdTemplates);
+    tr.appendChild(tdLastSeen);
     tr.appendChild(tdNote);
     tr.appendChild(tdActions);
     tbody.appendChild(tr);
   }
+
+  syncBulkBar();
 
   const from = data.total ? page * PAGE_SIZE + 1 : 0;
   $('#page-info').textContent = `${from}–${Math.min(data.total, (page + 1) * PAGE_SIZE)} of ${data.total}`;
@@ -413,6 +500,11 @@ function openDeleteDialog(user) {
   pendingDelete = user;
   $('#delete-dialog-title').textContent = 'Delete ' + user.username;
   $('#f-board-hide').checked = true;
+  // Reset every time: a dialog that opens already-confirmed from the last
+  // delete is worse than no confirmation at all.
+  $('#f-delete-name').textContent = user.username;
+  $('#f-delete-confirm').value = '';
+  $('#f-delete-save').disabled = true;
   $('#delete-dialog').returnValue = '';
   $('#delete-dialog').showModal();
 }
@@ -834,6 +926,158 @@ async function loadGreetings() {
   }
 }
 
+
+/* ---- Phase 6: admin action log -----------------------------------
+   Records WHAT was done, not WHO -- there is a single admin password.
+   The UI says so next to the table rather than letting the column
+   headings imply an accountability trail this cannot provide. */
+function renderActions(tbody, rows, colspan) {
+  clearChildren(tbody);
+  if (!rows.length) {
+    stateRow(tbody, colspan, 'Nothing yet', 'Admin changes will appear here.');
+    return;
+  }
+  for (const a of rows) {
+    const tr = document.createElement('tr');
+    const when = document.createElement('td');
+    when.textContent = new Date(a.ts).toLocaleString();
+    const what = document.createElement('td');
+    what.textContent = a.action;
+    const target = document.createElement('td');
+    target.textContent = a.target || '';
+    const detail = document.createElement('td');
+    detail.textContent = a.detail || '';
+    tr.appendChild(when); tr.appendChild(what);
+    tr.appendChild(target); tr.appendChild(detail);
+    tbody.appendChild(tr);
+  }
+}
+
+async function loadAdminActions() {
+  const data = await api('/admin/actions?limit=200');
+  renderActions($('#admin-actions-table tbody'), data.actions || [], 4);
+}
+
+/* ---- Phase 7: overview -------------------------------------------
+   Reads /admin/stats and the action log. The reviews-per-day trend comes
+   from the stats endpoint, which reads the cron-built snapshot -- a live
+   scan of `daily` would cost ~24,500 row reads per view. */
+function statCard(label, value, sub) {
+  const card = document.createElement('div');
+  card.className = 'ov-card';
+  const v = document.createElement('div');
+  v.className = 'ov-value';
+  v.textContent = String(value);
+  const l = document.createElement('div');
+  l.className = 'ov-label';
+  l.textContent = label;
+  card.appendChild(v);
+  card.appendChild(l);
+  if (sub) {
+    const sm = document.createElement('div');
+    sm.className = 'ov-sub';
+    sm.textContent = sub;
+    card.appendChild(sm);
+  }
+  return card;
+}
+
+async function loadOverview() {
+  const [stats, actions] = await Promise.all([
+    api('/admin/stats'),
+    api('/admin/actions?limit=15').catch(() => ({ actions: [] }))
+  ]);
+
+  const cards = $('#ov-cards');
+  clearChildren(cards);
+  cards.appendChild(statCard('Users', stats.users.total,
+    stats.users.authorized + ' active · ' + stats.users.revoked + ' revoked'));
+  cards.appendChild(statCard('Workgroups', (stats.workgroups && stats.workgroups.total) || 0));
+  cards.appendChild(statCard('Themes enabled', stats.themes.enabled + '/' + stats.themes.total));
+  const age = stats.snapshotAgeMs === null || stats.snapshotAgeMs === undefined
+    ? 'never built'
+    : Math.round(stats.snapshotAgeMs / 60000) + ' min old';
+  cards.appendChild(statCard('Leaderboard', 'snapshot', age));
+
+  // The trend is drawn as plain bars rather than a chart library: the
+  // panel loads no external scripts, and 14 numbers do not need one.
+  const trend = $('#ov-trend');
+  clearChildren(trend);
+  const days = (stats.daily && stats.daily.length) ? stats.daily : [];
+  if (!days.length) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'No review activity recorded yet.';
+    trend.appendChild(empty);
+  } else {
+    const max = Math.max(...days.map((d) => d.count), 1);
+    for (const d of days) {
+      const col = document.createElement('div');
+      col.className = 'ov-bar';
+      col.title = d.day + ': ' + d.count + ' reviews';
+      const fill = document.createElement('div');
+      fill.className = 'ov-bar-fill';
+      // Floor at 2% so a day with a single review is still visibly
+      // different from a day with none.
+      fill.style.height = (d.count ? Math.max(2, (d.count / max) * 100) : 0) + '%';
+      const lab = document.createElement('span');
+      lab.textContent = String(d.count);
+      col.appendChild(fill);
+      col.appendChild(lab);
+      trend.appendChild(col);
+    }
+  }
+
+  renderActions($('#ov-actions tbody'), actions.actions || [], 4);
+}
+
+/* ---- Phase 8: settings -------------------------------------------
+   /admin/settings has existed as a full GET/POST endpoint with no UI at
+   all; the only setting reachable before this was defaultTheme, tucked
+   inside the Themes tab. */
+async function loadSettings() {
+  const data = await api('/admin/settings');
+  const tbody = $('#settings-table tbody');
+  clearChildren(tbody);
+
+  const entries = Object.entries(data.settings || {});
+  if (!entries.length) {
+    stateRow(tbody, 3, 'No settings', 'Nothing has been set yet.');
+    return;
+  }
+
+  for (const [key, value] of entries) {
+    const tr = document.createElement('tr');
+    const tdKey = document.createElement('td');
+    tdKey.textContent = key;
+
+    const tdVal = document.createElement('td');
+    const input = document.createElement('input');
+    input.value = value;
+    input.maxLength = 200;
+    input.className = 'tpl-edit';
+    input.setAttribute('aria-label', 'Value for ' + key);
+    let last = value;
+    input.onchange = async () => {
+      const next = input.value;
+      if (next === last) return;
+      try {
+        await api('/admin/settings', { method: 'POST', body: JSON.stringify({ settings: { [key]: next } }) });
+        last = next;
+      } catch (err) {
+        input.value = last;
+        handleError(err, 'Saving ' + key);
+      }
+    };
+    tdVal.appendChild(input);
+
+    const tdActs = document.createElement('td');
+    tdActs.className = 'acts';
+    tr.appendChild(tdKey); tr.appendChild(tdVal); tr.appendChild(tdActs);
+    tbody.appendChild(tr);
+  }
+}
+
 /* ---- themes ---- */
 async function loadThemes() {
   const data = await api('/admin/themes');
@@ -1027,6 +1271,8 @@ function selectTab(btn) {
     b.tabIndex = on ? 0 : -1;
   });
   document.querySelectorAll('.tab').forEach((s) => { s.hidden = s.id !== 'tab-' + btn.dataset.tab; });
+  if (btn.dataset.tab === 'overview') loadOverview().catch((err) => handleError(err, 'Loading the overview', () => loadOverview().catch(() => {})));
+  if (btn.dataset.tab === 'settings') loadSettings().catch((err) => handleError(err, 'Loading settings'));
   if (btn.dataset.tab === 'groups') loadGroups();
   if (btn.dataset.tab === 'board') loadBoard();
   if (btn.dataset.tab === 'content') {
@@ -1034,7 +1280,10 @@ function selectTab(btn) {
     loadGreetings().catch((err) => handleError(err, 'Loading greetings'));
   }
   if (btn.dataset.tab === 'themes') loadThemes().catch((err) => handleError(err, 'Loading themes', () => loadThemes().catch(() => {})));
-  if (btn.dataset.tab === 'audit') loadAudit().catch((err) => handleError(err, 'Loading the audit log'));
+  if (btn.dataset.tab === 'audit') {
+    loadAudit().catch((err) => handleError(err, 'Loading the audit log'));
+    loadAdminActions().catch((err) => handleError(err, 'Loading admin actions'));
+  }
 }
 
 tabBtns.forEach((btn, i) => {
@@ -1065,6 +1314,54 @@ $('#next-page').onclick = () => { page++; loadUsers(); };
 // data loss.
 $('#user-group-filter').onchange = () => { page = 0; loadUsers(); };
 $('#user-status-filter').onchange = () => { page = 0; loadUsers(); };
+
+
+/* ---- Phase 5: bulk bar -------------------------------------------- */
+$('#select-all').onchange = () => {
+  const on = $('#select-all').checked;
+  for (const box of document.querySelectorAll('.row-select')) {
+    box.checked = on;
+    const name = box.getAttribute('aria-label').replace(/^Select /, '');
+    if (on) selected.add(name); else selected.delete(name);
+  }
+  syncBulkBar();
+};
+$('#bulk-clear-btn').onclick = () => {
+  selected = new Set();
+  for (const box of document.querySelectorAll('.row-select')) box.checked = false;
+  syncBulkBar();
+};
+$('#bulk-revoke-btn').onclick = () => {
+  if (!confirm(`Revoke ${selected.size} user(s)? Their history is kept.`)) return;
+  runBulk('revoke');
+};
+$('#bulk-restore-btn').onclick = () => runBulk('restore');
+$('#bulk-move-btn').onclick = () => {
+  const id = Number($('#bulk-move-group').value);
+  if (!id) return;
+  runBulk('move', { workgroup_id: id });
+};
+$('#bulk-delete-btn').onclick = () => {
+  // Typing the count is the same guard the single-user delete uses, scaled
+  // to a batch: the destructive path should cost a deliberate keystroke.
+  const answer = prompt(
+    `This removes ${selected.size} user(s) from the allow-list and hides them from the leaderboard.
+` +
+    `Their review history is kept.
+
+Type ${selected.size} to confirm.`);
+  if (answer === null || answer.trim() !== String(selected.size)) return;
+  runBulk('delete');
+};
+
+/* ---- Phase 9: type-to-confirm delete -------------------------------
+   Delete and Revoke are adjacent and both red, and only one is
+   reversible. Requiring the username removes the misclick. */
+$('#f-delete-confirm').oninput = () => {
+  const want = $('#f-delete-name').textContent.trim().toLowerCase();
+  const got = $('#f-delete-confirm').value.trim().toLowerCase();
+  $('#f-delete-save').disabled = !want || got !== want;
+};
 
 /* ---- Content tab ---- */
 const addGlobalTemplate = async () => {
@@ -1316,7 +1613,15 @@ async function start() {
   // <select> from this list, so loading it in parallel would race and
   // paint the first page with empty dropdowns.
   await refreshGroups();
-  await Promise.all([loadUsers(), loadStats()]);
+  // Overview is the landing tab now, so it has to be loaded on boot --
+  // selectTab() only fires when a tab is clicked, and the panel would
+  // otherwise open on an empty page. loadUsers still runs because the
+  // Users tab is one click away and its data is the most-wanted.
+  await Promise.all([
+    loadUsers(),
+    loadStats(),
+    loadOverview().catch((err) => handleError(err, 'Loading the overview'))
+  ]);
 }
 
 /* Previously any startup failure called signOut, so one flaky request on

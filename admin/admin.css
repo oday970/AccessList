@@ -386,3 +386,32 @@ dialog menu{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;margin:
 @media (prefers-reduced-motion:reduce){
   button,input,textarea,select{transition:none}
 }
+
+/* ---- Overview -------------------------------------------------- */
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:14px 0}
+.ov-card{
+  padding:14px 16px;border-radius:var(--radius-xs);
+  background:var(--field);box-shadow:inset 0 0 0 1px var(--border);
+}
+.ov-value{font-size:1.7rem;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.ov-label{margin-top:3px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut-t)}
+.ov-sub{margin-top:5px;font-size:11.5px;color:var(--mut-t)}
+
+/* 14 bars, drawn with divs. The panel loads no external scripts, and
+   fourteen numbers do not justify importing a chart library. */
+.ov-trend{
+  display:flex;align-items:flex-end;gap:6px;height:130px;
+  padding:12px;border-radius:var(--radius-xs);
+  background:var(--field);box-shadow:inset 0 0 0 1px var(--border);
+}
+.ov-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px}
+.ov-bar-fill{width:100%;border-radius:4px 4px 2px 2px;background:var(--accent);min-height:0}
+.ov-bar span{font-size:10px;color:var(--mut-t)}
+
+/* ---- Bulk action bar ------------------------------------------- */
+/* Tinted so it reads as a mode the table is in, not another toolbar. */
+.bulk-bar{
+  padding:9px 12px;border-radius:var(--radius-xs);
+  background:rgba(79,140,255,.10);box-shadow:inset 0 0 0 1px rgba(79,140,255,.34);
+}
+.bulk-bar #bulk-count{font-weight:700;font-size:12px}
