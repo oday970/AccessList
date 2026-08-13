@@ -818,16 +818,28 @@ async function loadTemplates() {
    1440 and cannot be typed into a time input, so it round-trips through
    '24:00' explicitly -- without that, "all day" saves as 0-0 and the
    greeting never shows. */
+/* 1440 means "end of day" and has no spelling an <input type="time"> will
+   accept: the control's range is 00:00-23:59, so assigning '24:00' is
+   rejected and the field renders EMPTY -- which is how an "all day"
+   greeting ended up showing a blank end time.
+
+   So 1440 is shown as 23:59 and read back as 1440. The cost is that
+   end_min 1439 cannot be expressed through this control, which is a
+   distinction without a difference: a greeting that stops one minute
+   before midnight versus at midnight is the same greeting. Storing 1440
+   rather than 1439 is what keeps the final minute of the day covered. */
+const END_OF_DAY = 1440;
 const minToTime = (m) => {
-  const n = Math.max(0, Math.min(1440, Number(m) || 0));
-  if (n === 1440) return '24:00';
-  return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+  const n = Math.max(0, Math.min(END_OF_DAY, Number(m) || 0));
+  const shown = n === END_OF_DAY ? 1439 : n;
+  return String(Math.floor(shown / 60)).padStart(2, '0') + ':' + String(shown % 60).padStart(2, '0');
 };
 const timeToMin = (v) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || ''));
   if (!m) return null;
   const mins = Number(m[1]) * 60 + Number(m[2]);
-  return mins >= 0 && mins <= 1440 ? mins : null;
+  if (mins < 0 || mins > END_OF_DAY) return null;
+  return mins === 1439 ? END_OF_DAY : mins;
 };
 
 async function loadGreetings() {
