@@ -261,7 +261,7 @@ async function loadUsers() {
     data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&status=${status}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   } catch (err) {
     clearChildren(tbody);
-    stateRow(tbody, 7, 'Could not load', 'The list is unavailable, not empty.');
+    stateRow(tbody, 8, 'Could not load', 'The list is unavailable, not empty.');
     handleError(err, 'Loading users', () => loadUsers());
     return;
   }
@@ -278,9 +278,9 @@ async function loadUsers() {
         filtered ? 'that workgroup' : null,
         byStatus ? 'that access state' : null
       ].filter(Boolean).join(' and ');
-      stateRow(tbody, 7, 'No match', 'Nobody matches ' + by + '.');
+      stateRow(tbody, 8, 'No match', 'Nobody matches ' + by + '.');
     } else {
-      stateRow(tbody, 7, 'No users yet', 'Add the first user to the allow-list.');
+      stateRow(tbody, 8, 'No users yet', 'Add the first user to the allow-list.');
     }
   }
 
@@ -325,6 +325,7 @@ async function loadUsers() {
 
     const tdRainbow = flagCell(u.rainbow);
     const tdThemes = flagCell(u.themes);
+    const tdTemplates = flagCell(u.templates);
 
     const tdNote = document.createElement('td');
     tdNote.textContent = u.note || '';
@@ -392,6 +393,7 @@ async function loadUsers() {
     tr.appendChild(tdGroup);
     tr.appendChild(tdRainbow);
     tr.appendChild(tdThemes);
+    tr.appendChild(tdTemplates);
     tr.appendChild(tdNote);
     tr.appendChild(tdActions);
     tbody.appendChild(tr);
@@ -587,6 +589,9 @@ function openUserDialog(user) {
   $('#f-authorized').checked = user ? !!user.authorized : true;
   $('#f-rainbow').checked = user ? !!user.rainbow : false;
   $('#f-themes').checked = user ? !!user.themes : false;
+  // Defaults to ticked for a new user: the capability is on for everyone and
+  // revoked case by case, unlike rainbow and themes above.
+  $('#f-templates').checked = user ? !!user.templates : true;
   $('#f-note').value = user ? (user.note || '') : '';
   // returnValue is NOT reset by the dialog itself on an Escape-dismiss
   // (Escape fires 'cancel' then 'close' but leaves returnValue untouched),
@@ -594,6 +599,125 @@ function openUserDialog(user) {
   // cause the next Escape-dismiss to silently re-submit. Reset it here.
   $('#user-dialog').returnValue = '';
   $('#user-dialog').showModal();
+}
+
+/* ---- status templates -------------------------------------------
+   Every template body is written with textContent, never innerHTML. These
+   strings come from reviewers, and one of them typing "<b>" must render as
+   those four characters in this table exactly as it does in the assistant's
+   dropdown. That is the whole reason the client stores them verbatim rather
+   than sanitising on the way in. */
+async function loadTemplates() {
+  const filter = encodeURIComponent($('#tpl-user-filter').value.trim());
+  const data = await api('/admin/templates?username=' + filter);
+
+  const globalBody = $('#tpl-global-table tbody');
+  clearChildren(globalBody);
+  if (!(data.globalRows || []).length) {
+    stateRow(globalBody, 2, 'No global templates', 'Everyone falls back to the built-in list.');
+  }
+  for (const t of data.globalRows || []) {
+    const tr = document.createElement('tr');
+
+    // Editable in place: a typo in a wording everyone sees should not need a
+    // dialog, and the field already carries the current text.
+    const tdBody = document.createElement('td');
+    const input = document.createElement('input');
+    input.value = t.body;
+    input.maxLength = 300;
+    input.className = 'tpl-edit';
+    input.setAttribute('aria-label', 'Global template');
+    let last = t.body;
+    input.onchange = async () => {
+      const next = input.value.trim();
+      if (!next || next === last) { input.value = last; return; }
+      input.disabled = true;
+      try {
+        await api('/admin/templates', { method: 'POST', body: JSON.stringify({ id: t.id, body: next }) });
+        last = next;
+      } catch (err) {
+        input.value = last;
+        handleError(err, 'Saving the template');
+      } finally {
+        input.disabled = false;
+      }
+    };
+    tdBody.appendChild(input);
+
+    const tdActs = document.createElement('td');
+    tdActs.className = 'acts';
+    const del = document.createElement('button');
+    del.className = 'danger';
+    del.textContent = 'Delete';
+    del.setAttribute('aria-label', 'Delete global template');
+    del.onclick = async () => {
+      if (!confirm('Delete this global template? Reviewers lose it from their dropdown.')) return;
+      try {
+        await api('/admin/templates/' + t.id, { method: 'DELETE' });
+        loadTemplates();
+      } catch (err) { handleError(err, 'Deleting the template'); }
+    };
+    tdActs.appendChild(del);
+
+    tr.appendChild(tdBody);
+    tr.appendChild(tdActs);
+    globalBody.appendChild(tr);
+  }
+
+  const ownedBody = $('#tpl-owned-table tbody');
+  clearChildren(ownedBody);
+  if (!(data.owned || []).length) {
+    const f = $('#tpl-user-filter').value.trim();
+    stateRow(ownedBody, 3, f ? 'No match' : 'Nothing saved yet',
+      f ? 'Nobody matching that filter has saved a template.'
+        : 'Reviewers have not saved any templates of their own.');
+  }
+  for (const t of data.owned || []) {
+    const tr = document.createElement('tr');
+
+    const tdUser = document.createElement('td');
+    tdUser.textContent = t.username;
+
+    const tdBody = document.createElement('td');
+    tdBody.textContent = t.body;
+
+    const tdActs = document.createElement('td');
+    tdActs.className = 'acts';
+
+    // Promotion copies into the global list and leaves the reviewer's own
+    // copy alone -- taking it away would punish them for writing something
+    // good enough to share.
+    const promote = document.createElement('button');
+    promote.textContent = 'Promote';
+    promote.setAttribute('aria-label', 'Promote ' + t.username + '’s template to global');
+    promote.onclick = async () => {
+      try {
+        await api('/admin/templates', { method: 'POST', body: JSON.stringify({ promote: t.id }) });
+        loadTemplates();
+      } catch (err) { handleError(err, 'Promoting the template'); }
+    };
+
+    const del = document.createElement('button');
+    del.className = 'danger';
+    del.textContent = 'Delete';
+    del.setAttribute('aria-label', 'Delete ' + t.username + '’s template');
+    del.onclick = async () => {
+      if (!confirm(`Delete this template saved by ${t.username}?`)) return;
+      try {
+        await api('/admin/templates/' + t.id, { method: 'DELETE' });
+        loadTemplates();
+      } catch (err) { handleError(err, 'Deleting the template'); }
+    };
+
+    tdActs.appendChild(promote);
+    tdActs.appendChild(document.createTextNode(' '));
+    tdActs.appendChild(del);
+
+    tr.appendChild(tdUser);
+    tr.appendChild(tdBody);
+    tr.appendChild(tdActs);
+    ownedBody.appendChild(tr);
+  }
 }
 
 /* ---- themes ---- */
@@ -791,6 +915,7 @@ function selectTab(btn) {
   document.querySelectorAll('.tab').forEach((s) => { s.hidden = s.id !== 'tab-' + btn.dataset.tab; });
   if (btn.dataset.tab === 'groups') loadGroups();
   if (btn.dataset.tab === 'board') loadBoard();
+  if (btn.dataset.tab === 'content') loadTemplates().catch((err) => handleError(err, 'Loading templates', () => loadTemplates().catch(() => {})));
   if (btn.dataset.tab === 'themes') loadThemes().catch((err) => handleError(err, 'Loading themes', () => loadThemes().catch(() => {})));
   if (btn.dataset.tab === 'audit') loadAudit().catch((err) => handleError(err, 'Loading the audit log'));
 }
@@ -818,12 +943,39 @@ $('#user-search').oninput = () => {
 $('#prev-page').onclick = () => { page = Math.max(0, page - 1); loadUsers(); };
 $('#next-page').onclick = () => { page++; loadUsers(); };
 
-// Changing the filter resets to page 0: staying on page 3 of an unfiltered
-// list after narrowing to a five-person group shows an empty table.
 // Both reset to page 0: staying on page 3 of an unfiltered list after
-// narrowing to two rows shows an empty table that reads as data loss.
+// narrowing to a five-person group shows an empty table that reads as
+// data loss.
 $('#user-group-filter').onchange = () => { page = 0; loadUsers(); };
 $('#user-status-filter').onchange = () => { page = 0; loadUsers(); };
+
+/* ---- Content tab ---- */
+const addGlobalTemplate = async () => {
+  const input = $('#tpl-new');
+  const body = input.value.trim();
+  if (!body) return;
+  try {
+    await api('/admin/templates', { method: 'POST', body: JSON.stringify({ body }) });
+    input.value = '';
+    loadTemplates();
+  } catch (err) {
+    // The field keeps its text on failure, so a rejected 301-character
+    // template is still there to shorten rather than retyped from memory.
+    handleError(err, 'Adding the template');
+  }
+};
+$('#tpl-add-btn').onclick = addGlobalTemplate;
+$('#tpl-new').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); addGlobalTemplate(); }
+});
+$('#tpl-refresh-btn').onclick = () => loadTemplates().catch((err) => handleError(err, 'Refreshing templates'));
+// Same 250ms settle as #user-search above, and its own timer so typing in
+// one filter cannot cancel the other's pending load.
+let tplFilterTimer = null;
+$('#tpl-user-filter').oninput = () => {
+  clearTimeout(tplFilterTimer);
+  tplFilterTimer = setTimeout(() => loadTemplates().catch((err) => handleError(err, 'Filtering templates')), 250);
+};
 
 $('#refresh-users-btn').onclick = async () => {
   const btn = $('#refresh-users-btn');
@@ -953,6 +1105,7 @@ $('#user-dialog').addEventListener('close', async () => {
         authorized: $('#f-authorized').checked,
         rainbow: $('#f-rainbow').checked,
         themes: $('#f-themes').checked,
+        templates: $('#f-templates').checked,
         note: $('#f-note').value,
         workgroup_id: Number($('#f-workgroup').value)
       })

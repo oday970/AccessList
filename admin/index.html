@@ -46,6 +46,7 @@
     <button role="tab" id="tab-btn-users"  aria-selected="true"  aria-controls="tab-users"  data-tab="users">Users</button>
     <button role="tab" id="tab-btn-groups" aria-selected="false" aria-controls="tab-groups" data-tab="groups" tabindex="-1">Groups</button>
     <button role="tab" id="tab-btn-board"  aria-selected="false" aria-controls="tab-board"  data-tab="board"  tabindex="-1">Leaderboard</button>
+    <button role="tab" id="tab-btn-content" aria-selected="false" aria-controls="tab-content" data-tab="content" tabindex="-1">Content</button>
     <button role="tab" id="tab-btn-themes" aria-selected="false" aria-controls="tab-themes" data-tab="themes" tabindex="-1">Themes</button>
     <button role="tab" id="tab-btn-audit"  aria-selected="false" aria-controls="tab-audit"  data-tab="audit"  tabindex="-1">Audit</button>
   </nav>
@@ -77,6 +78,7 @@
           <th scope="col">Workgroup</th>
           <th scope="col">Rainbow</th>
           <th scope="col">Themes</th>
+          <th scope="col">Templates</th>
           <th scope="col">Note</th>
           <th scope="col"><span class="sr-only">Actions</span></th>
         </tr></thead>
@@ -135,6 +137,48 @@
     </div>
   </section>
 
+  <section id="tab-content" class="tab" role="tabpanel" aria-labelledby="tab-btn-content" tabindex="0" hidden>
+    <h2>Status templates</h2>
+    <p class="hint">Wordings offered in the assistant's <b>Current Status</b> dropdown. Global
+    templates are shown to everyone; below them are the ones reviewers saved for themselves.</p>
+
+    <h3>Global — everyone sees these</h3>
+    <div class="toolbar">
+      <label for="tpl-new" class="sr-only">New global template</label>
+      <input id="tpl-new" maxlength="300" placeholder="New global template…">
+      <button id="tpl-add-btn" class="primary">Add</button>
+      <span class="spacer"></span>
+      <button id="tpl-refresh-btn">Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table id="tpl-global-table">
+        <caption>Global templates</caption>
+        <thead><tr>
+          <th scope="col">Template</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <h3>Saved by reviewers</h3>
+    <div class="toolbar">
+      <label for="tpl-user-filter" class="sr-only">Filter by username</label>
+      <input id="tpl-user-filter" type="search" placeholder="Filter by username…">
+    </div>
+    <div class="table-wrap">
+      <table id="tpl-owned-table">
+        <caption>Reviewer templates — promote a good one, delete a bad one</caption>
+        <thead><tr>
+          <th scope="col">User</th>
+          <th scope="col">Template</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <section id="tab-themes" class="tab" role="tabpanel" aria-labelledby="tab-btn-themes" tabindex="0" hidden>
     <h2>Themes</h2>
     <p class="hint-strong">The default theme must be one that is enabled, and at least one theme must stay enabled.</p>
@@ -184,6 +228,7 @@
     <label class="inline"><input id="f-authorized" type="checkbox" checked> Authorized — can use the assistant</label>
     <label class="inline"><input id="f-rainbow" type="checkbox"> Rainbow name — animated name on the leaderboard</label>
     <label class="inline"><input id="f-themes" type="checkbox"> Theme picker — may change the panel theme</label>
+    <label class="inline"><input id="f-templates" type="checkbox" checked> Status templates — may save their own Current Status wordings</label>
     <label>Note <span class="hint">(optional, for other admins)</span>
       <input id="f-note" maxlength="500" autocomplete="off">
     </label>
