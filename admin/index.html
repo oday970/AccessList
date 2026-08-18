@@ -166,9 +166,19 @@
   </section>
 
   <section id="tab-content" class="tab" role="tabpanel" aria-labelledby="tab-btn-content" tabindex="0" hidden>
-    <h2>Status templates</h2>
-    <p class="hint">Wordings offered in the assistant's <b>Current Status</b> dropdown. Global
-    templates are shown to everyone; below them are the ones reviewers saved for themselves.</p>
+    <h2>Field templates</h2>
+    <p class="hint">Wordings offered in the assistant's dropdowns. Global templates are shown to
+    everyone; below them are the ones reviewers saved for themselves. Each field keeps its own
+    separate list — switch fields below.</p>
+
+    <div class="toolbar">
+      <label for="tpl-field">Field</label>
+      <select id="tpl-field">
+        <option value="currentStatus">Current Status — replaces the box</option>
+        <option value="actionsRequired">Actions Required — appends a line</option>
+      </select>
+    </div>
+    <p class="hint" id="tpl-field-hint"></p>
 
     <h3>Global — everyone sees these</h3>
     <div class="toolbar">

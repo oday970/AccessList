@@ -699,9 +699,22 @@ function openUserDialog(user) {
    those four characters in this table exactly as it does in the assistant's
    dropdown. That is the whole reason the client stores them verbatim rather
    than sanitising on the way in. */
+/* Which field's list this tab is showing. Read from the selector on every
+   call rather than cached, so a write and the reload that follows it can
+   never disagree about which list they meant. */
+const tplField = () => $('#tpl-field').value;
+
+const TPL_FIELD_HINTS = {
+  currentStatus: 'Picking one of these REPLACES the Current Status box in the assistant.',
+  actionsRequired: 'Picking one of these APPENDS a line to Actions Required, keeping what is already there. ' +
+                   'Include the bullet character you want (e.g. "- " or "* ") — the assistant adds none.'
+};
+
 async function loadTemplates() {
   const filter = encodeURIComponent($('#tpl-user-filter').value.trim());
-  const data = await api('/admin/templates?username=' + filter);
+  const field = tplField();
+  $('#tpl-field-hint').textContent = TPL_FIELD_HINTS[field] || '';
+  const data = await api('/admin/templates?field=' + encodeURIComponent(field) + '&username=' + filter);
 
   const globalBody = $('#tpl-global-table tbody');
   clearChildren(globalBody);
@@ -1381,7 +1394,7 @@ const addGlobalTemplate = async () => {
   const body = input.value.trim();
   if (!body) return;
   try {
-    await api('/admin/templates', { method: 'POST', body: JSON.stringify({ body }) });
+    await api('/admin/templates', { method: 'POST', body: JSON.stringify({ body, field: tplField() }) });
     input.value = '';
     loadTemplates();
   } catch (err) {
@@ -1434,6 +1447,12 @@ let tplFilterTimer = null;
 $('#tpl-user-filter').oninput = () => {
   clearTimeout(tplFilterTimer);
   tplFilterTimer = setTimeout(() => loadTemplates().catch((err) => handleError(err, 'Filtering templates')), 250);
+};
+
+// Switching fields reloads both tables. No debounce: this is a deliberate
+// click, not typing, and the two lists must never be shown together.
+$('#tpl-field').onchange = () => {
+  loadTemplates().catch((err) => handleError(err, 'Loading templates'));
 };
 
 $('#refresh-users-btn').onclick = async () => {
