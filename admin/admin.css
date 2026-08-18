@@ -240,6 +240,18 @@ th{
 }
 tbody tr:hover td{background:var(--surf)}
 td.revoked{color:var(--mut-t);text-decoration:line-through}
+/* Reorder handle. The grip is the draggable element, not the row: the row
+   holds a text input, and making the whole row draggable stops you
+   selecting a wording to edit it. */
+td.grip-cell{width:1%;padding-right:0}
+.grip{display:inline-block;cursor:grab;user-select:none;padding:4px 6px;
+      border-radius:6px;color:var(--mut);line-height:1}
+.grip:hover{color:var(--text);background:var(--field)}
+.grip:active{cursor:grabbing}
+tr.dragging{opacity:.45}
+tr.dragging .grip{cursor:grabbing}
+@media (prefers-reduced-motion:no-preference){tr{transition:opacity .12s ease}}
+
 td.acts{white-space:nowrap}
 td.acts button{padding:7px 11px;font-size:10px}
 
