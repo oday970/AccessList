@@ -710,6 +710,32 @@ const TPL_FIELD_HINTS = {
                    'Include the bullet character you want (e.g. "- " or "* ") — the assistant adds none.'
 };
 
+/* The row being dragged, shared between the handle that started the drag
+   and the rows it passes over. */
+let dragRow = null;
+
+/* Persist the order the table is currently in.
+
+   Sends the WHOLE list of ids, which is what the endpoint requires: a
+   partial list is refused rather than half-applied, so a tab left open
+   while somebody else added a wording fails loudly and reloads instead of
+   quietly dropping that wording out of the order. */
+async function saveTemplateOrder(tbody) {
+  const ids = [...tbody.querySelectorAll('tr[data-id]')].map((tr) => Number(tr.dataset.id));
+  if (!ids.length) return;
+  try {
+    await api('/admin/templates/reorder', {
+      method: 'POST', body: JSON.stringify({ field: tplField(), ids })
+    });
+    // Reload rather than trust the DOM: the server is the authority on the
+    // order, and a refused reorder must not leave the table showing one.
+    loadTemplates();
+  } catch (err) {
+    handleError(err, 'Saving the template order');
+    loadTemplates();
+  }
+}
+
 async function loadTemplates() {
   const filter = encodeURIComponent($('#tpl-user-filter').value.trim());
   const field = tplField();
@@ -719,10 +745,50 @@ async function loadTemplates() {
   const globalBody = $('#tpl-global-table tbody');
   clearChildren(globalBody);
   if (!(data.globalRows || []).length) {
-    stateRow(globalBody, 2, 'No global templates', 'Everyone falls back to the built-in list.');
+    stateRow(globalBody, 3, 'No global templates', 'Everyone falls back to the built-in list.');
   }
   for (const t of data.globalRows || []) {
     const tr = document.createElement('tr');
+    tr.dataset.id = String(t.id);
+
+    /* The handle is draggable, not the row. Dragging the row itself would
+       fight the text input inside it -- you could not select a wording to
+       edit it without starting a drag. */
+    const tdGrip = document.createElement('td');
+    tdGrip.className = 'grip-cell';
+    const grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.draggable = true;
+    grip.textContent = '☰';
+    grip.title = 'Drag to reorder';
+    grip.setAttribute('aria-label', 'Drag to reorder this template');
+    grip.ondragstart = (e) => {
+      dragRow = tr;
+      tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      // Firefox ignores a drag that sets no data.
+      e.dataTransfer.setData('text/plain', String(t.id));
+    };
+    grip.ondragend = () => {
+      tr.classList.remove('dragging');
+      dragRow = null;
+    };
+    tdGrip.appendChild(grip);
+    tr.appendChild(tdGrip);
+
+    /* Drop targeting lives on the ROW: the pointer is over a row, not over
+       the two-pixel handle, for almost the whole gesture. */
+    tr.ondragover = (e) => {
+      if (!dragRow || dragRow === tr) return;
+      e.preventDefault();
+      const box = tr.getBoundingClientRect();
+      const below = (e.clientY - box.top) > box.height / 2;
+      globalBody.insertBefore(dragRow, below ? tr.nextSibling : tr);
+    };
+    tr.ondrop = (e) => {
+      e.preventDefault();
+      saveTemplateOrder(globalBody);
+    };
 
     // Editable in place: a typo in a wording everyone sees should not need a
     // dialog, and the field already carries the current text.
