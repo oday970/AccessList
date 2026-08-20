@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Cisco Case Review Assistant — Loader
 // @namespace    http://tampermonkey.net/
-// @version      0.30.1
+// @version      0.30.2
 // @description  Loads the Case Review Assistant script.
 // @author       Oday (odemar@cisco.com)
-// @match        https://scripts.cisco.com/app/quicker_csone/case/*
+// @match        https://scripts.cisco.com/app/quicker_csone/*
 // @match        https://ss.estarta.com/CaseReview/*
 // @updateURL    https://casereview.cc/loader.user.js
 // @downloadURL  https://casereview.cc/loader.user.js
@@ -23,6 +23,8 @@
 
 (function () {
     'use strict';
+
+    console.log('[CRA Loader] Loader started:', location.href);
 
     const API_BASE      = 'https://api.casereview.cc';
     const LOADER_SECRET = 'cra_a1b2c3d4e5f6g7h8';
@@ -194,11 +196,16 @@
         if (!cached) { fetchScript('remote (cold)'); return; }
 
         if (Date.now() - lastCheck < CHECK_EVERY) {
-            await runVerified(cached, 'cache (fresh)');
+            if (!(await runVerified(cached, 'cache (fresh)'))) {
+                fetchScript('remote (invalid cache recovery)');
+            }
             return;
         }
 
-        await runVerified(cached, 'cache (revalidating)');
+        if (!(await runVerified(cached, 'cache (revalidating)'))) {
+            fetchScript('remote (invalid cache recovery)');
+            return;
+        }
 
         GM_xmlhttpRequest({
             method: 'GET',
