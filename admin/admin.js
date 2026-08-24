@@ -15,6 +15,13 @@ function clearChildren(el) {
 let page = 0;
 const PAGE_SIZE = 50;
 
+/* Sorting is done by the server, not by reordering the rows on screen:
+   the table shows one page of a list that may be many pages long, and
+   sorting only what is visible would sort fifty names out of six hundred
+   while looking exactly like it had sorted all of them. */
+let sortKey = 'username';
+let sortDir = 'asc';
+
 async function api(path, options = {}) {
   const resp = await fetch(API + path, {
     ...options,
@@ -476,7 +483,7 @@ async function loadUsers() {
   const tbody = $('#user-table tbody');
   let data;
   try {
-    data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&status=${status}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
+    data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&status=${status}&sort=${sortKey}&dir=${sortDir}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   } catch (err) {
     if (seq !== usersLoadSeq) return;
     clearChildren(tbody);
@@ -485,6 +492,10 @@ async function loadUsers() {
     return;
   }
   if (seq !== usersLoadSeq) return;   // a newer load is already on its way
+  // Painted from what the server says it DID, not from what was asked:
+  // an unknown key falls back to username there, and a header claiming a
+  // sort the rows are not in is worse than no indicator at all.
+  paintSortHeaders(data.sort || sortKey, data.dir || sortDir);
   clearChildren(tbody);
   selected = new Set();
 
@@ -649,6 +660,24 @@ async function loadUsers() {
   $('#page-info').textContent = `${from}–${Math.min(data.total, (page + 1) * PAGE_SIZE)} of ${data.total}`;
   $('#prev-page').disabled = page === 0;
   $('#next-page').disabled = (page + 1) * PAGE_SIZE >= data.total;
+}
+
+function paintSortHeaders(key, dir) {
+  for (const btn of document.querySelectorAll('.sort-btn')) {
+    const th = btn.closest('th');
+    const on = btn.dataset.sort === key;
+    th.setAttribute('aria-sort', on ? (dir === 'desc' ? 'descending' : 'ascending') : 'none');
+    // The arrow is decorative -- aria-sort above is what is announced --
+    // so it must not end up in the accessible name of the button.
+    let arrow = btn.querySelector('.sort-arrow');
+    if (!arrow) {
+      arrow = document.createElement('span');
+      arrow.className = 'sort-arrow';
+      arrow.setAttribute('aria-hidden', 'true');
+      btn.appendChild(arrow);
+    }
+    arrow.textContent = on ? (dir === 'desc' ? ' \u2193' : ' \u2191') : '';
+  }
 }
 
 /* ---- delete + standings ---------------------------------------- */
@@ -1582,6 +1611,20 @@ tabBtns.forEach((btn, i) => {
   });
 });
 
+/* Clicking the column you are already sorted by reverses it; clicking a
+   different one starts that column ascending rather than inheriting a
+   descending state from the column you left, which reads as the table
+   jumping to the wrong end of the new list. */
+document.querySelectorAll('.sort-btn').forEach((btn) => {
+  btn.onclick = () => {
+    const key = btn.dataset.sort;
+    if (key === sortKey) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortKey = key; sortDir = 'asc'; }
+    page = 0;   // page 4 of the old order is not page 4 of the new one
+    loadUsers();
+  };
+});
+
 let searchTimer = null;
 $('#user-search').oninput = () => {
   clearTimeout(searchTimer);
@@ -1634,12 +1677,47 @@ $('#bulk-delete-btn').onclick = async () => {
   const n = selected.size;
   const r = await confirmDialog({
     title: `Delete ${n} user${n === 1 ? '' : 's'}?`,
-    body: 'This removes them from the allow-list and hides them from the leaderboard. Their review history is kept, so re-adding the same username restores everything.',
+    body: 'This removes them from the allow-list. Their review history is kept, so re-adding the same username restores everything.',
     confirmText: 'Delete', danger: true,
-    typeToConfirm: String(n)
+    typeToConfirm: String(n),
+    /* The single-user delete has always asked this. The bulk path used to
+       decide it silently, so the same question had two different answers
+       depending on which button you got here through. */
+    extra: {
+      render(container) {
+        const fs = document.createElement('fieldset');
+        const lg = document.createElement('legend');
+        lg.textContent = 'Their leaderboard entries';
+        fs.appendChild(lg);
+        const opt = (id, value, text, checked) => {
+          const label = document.createElement('label');
+          label.className = 'inline';
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'cd-board';
+          radio.id = id;
+          radio.value = value;
+          radio.checked = checked;
+          label.appendChild(radio);
+          label.appendChild(document.createTextNode(' ' + text));
+          fs.appendChild(label);
+        };
+        opt('cd-board-hide', 'hide', 'Remove them from the leaderboard', true);
+        opt('cd-board-keep', 'keep', 'Leave them on the leaderboard', false);
+        container.appendChild(fs);
+      },
+      // Read off the container the renderer was handed, not by id: these
+      // radios exist only while the dialog is open, so a by-id lookup for
+      // them would look like a permanently broken selector to the boot
+      // check that scrapes this file for ids the markup must contain.
+      read: (container) => {
+        const keep = container.querySelector('input[value="keep"]');
+        return keep && keep.checked ? 'keep' : 'hide';
+      }
+    }
   });
   if (!r.ok) return;
-  runBulk('delete');
+  runBulk('delete', { board: r.value });
 };
 
 /* ---- Phase 9: type-to-confirm delete -------------------------------
@@ -1887,6 +1965,11 @@ $('#bulk-dialog').addEventListener('close', async () => {
         ['Already existing', r.existing],
         ['Duplicates in list', r.duplicates],
         ['Invalid', r.invalid]
+      ],
+      // Counts alone leave an admin hunting one bad name in forty by eye.
+      lists: [
+        { title: 'Invalid — not added', items: r.invalidNames || [] },
+        { title: 'Listed more than once', items: r.duplicateNames || [] }
       ]
     });
     $('#f-bulk').value = '';

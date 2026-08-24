@@ -100,13 +100,17 @@
         <caption>Allow-list — who can use the assistant</caption>
         <thead><tr>
           <th scope="col"><input type="checkbox" id="select-all" aria-label="Select all on this page"></th>
-          <th scope="col">Username</th>
+          <!-- Sorting is a button inside the header, not a click handler on
+               the <th>: a header cell is not focusable and announces
+               nothing, so a keyboard user could not reach the sort at all.
+               aria-sort lives on the th, which is where it is read from. -->
+          <th scope="col" aria-sort="ascending"><button type="button" class="sort-btn" id="sort-username" data-sort="username">Username</button></th>
           <th scope="col">Access</th>
-          <th scope="col">Workgroup</th>
+          <th scope="col" aria-sort="none"><button type="button" class="sort-btn" id="sort-workgroup" data-sort="workgroup">Workgroup</button></th>
           <th scope="col">Rainbow</th>
           <th scope="col">Themes</th>
           <th scope="col">Templates</th>
-          <th scope="col">Last seen</th>
+          <th scope="col" aria-sort="none"><button type="button" class="sort-btn" id="sort-last_seen" data-sort="last_seen">Last seen</button></th>
           <th scope="col">Note</th>
           <th scope="col"><span class="sr-only">Actions</span></th>
         </tr></thead>
