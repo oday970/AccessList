@@ -54,6 +54,130 @@ function handleError(err, context, retryFn) {
   showBanner(context + ' failed: ' + ((err && err.message) || 'unknown error'), retryFn);
 }
 
+/* ---- in-page dialogs ---------------------------------------------
+   Every question the panel asks and every result it reports goes through
+   these two. window.confirm/alert/prompt are not used anywhere, and the
+   reason is not taste: after a couple of native dialogs in a row Chrome
+   offers "prevent this page from creating additional dialogs", and once
+   that is ticked every later confirm() returns FALSE with no error and no
+   dialog. Every delete guard in this panel would start silently refusing
+   to delete. A <dialog> cannot be switched off from under us.
+
+   confirmDialog resolves { ok, value } rather than a bare boolean so a
+   caller can carry something back out -- a typed name, a radio choice --
+   without a second round of state. */
+function confirmDialog(opts) {
+  const o = opts || {};
+  const dlg = $('#confirm-dialog');
+  $('#confirm-title').textContent = o.title || 'Are you sure?';
+  $('#confirm-body').textContent = o.body || '';
+
+  const okBtn = $('#confirm-ok');
+  okBtn.textContent = o.confirmText || 'Confirm';
+  okBtn.className = o.danger ? 'danger' : 'primary';
+  okBtn.disabled = false;
+
+  const input = $('#confirm-input');
+  $('#confirm-input-wrap').hidden = !o.input;
+  input.value = o.input ? (o.input.value || '') : '';
+  if (o.input) {
+    $('#confirm-input-label').textContent = o.input.label || '';
+    input.maxLength = o.input.maxLength || 200;
+  }
+
+  /* Type-to-confirm, the same guard the single-user delete dialog uses.
+     Compared case-insensitively: the point is deliberate intent, not
+     transcription accuracy. */
+  const typeInput = $('#confirm-type');
+  const want = o.typeToConfirm === undefined || o.typeToConfirm === null
+    ? null : String(o.typeToConfirm);
+  $('#confirm-type-wrap').hidden = !want;
+  $('#confirm-type-want').textContent = want || '';
+  typeInput.value = '';
+  if (want) {
+    okBtn.disabled = true;
+    typeInput.oninput = () => {
+      okBtn.disabled = typeInput.value.trim().toLowerCase() !== want.trim().toLowerCase();
+    };
+  } else {
+    typeInput.oninput = null;
+  }
+
+  // Arbitrary extra controls, e.g. the bulk delete's keep/hide radios.
+  const extra = $('#confirm-extra');
+  clearChildren(extra);
+  if (o.extra && o.extra.render) o.extra.render(extra);
+
+  // Escape leaves returnValue untouched, so a stale 'ok' from the previous
+  // confirmation would read as a fresh yes. Same trap as the user dialog.
+  dlg.returnValue = '';
+  dlg.showModal();
+
+  return new Promise((resolve) => {
+    dlg.addEventListener('close', function once() {
+      dlg.removeEventListener('close', once);
+      const ok = dlg.returnValue === 'ok';
+      let value = true;
+      if (ok && o.input) value = input.value.trim();
+      else if (ok && o.extra && o.extra.read) value = o.extra.read(extra);
+      resolve({ ok, value });
+    });
+  });
+}
+
+/* Reports a result. `rows` is a list of [label, value] pairs rendered as a
+   small table -- readable, selectable and still on screen while you act on
+   it, none of which is true of an alert(). */
+function messageDialog(opts) {
+  const o = opts || {};
+  const dlg = $('#msg-dialog');
+  $('#msg-title').textContent = o.title || '';
+  $('#msg-body').textContent = o.body || '';
+
+  const tbody = $('#msg-rows tbody');
+  clearChildren(tbody);
+  const rows = o.rows || [];
+  $('#msg-rows-wrap').hidden = !rows.length;
+  for (const pair of rows) {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.scope = 'row';
+    th.textContent = pair[0];
+    const td = document.createElement('td');
+    td.textContent = String(pair[1]);
+    tr.appendChild(th);
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+
+  // Optional named lists, e.g. which usernames a bulk add refused.
+  const lists = $('#msg-lists');
+  clearChildren(lists);
+  for (const l of o.lists || []) {
+    if (!l || !(l.items || []).length) continue;
+    const h = document.createElement('h3');
+    h.textContent = l.title;
+    const ul = document.createElement('ul');
+    ul.className = 'msg-list';
+    for (const item of l.items) {
+      const li = document.createElement('li');
+      li.textContent = item;
+      ul.appendChild(li);
+    }
+    lists.appendChild(h);
+    lists.appendChild(ul);
+  }
+
+  dlg.returnValue = '';
+  dlg.showModal();
+  return new Promise((resolve) => {
+    dlg.addEventListener('close', function once() {
+      dlg.removeEventListener('close', once);
+      resolve();
+    });
+  });
+}
+
 async function signIn(password) {
   const resp = await fetch(API + '/admin/login', {
     method: 'POST',
@@ -202,11 +326,18 @@ async function loadGroups() {
     renameBtn.textContent = 'Rename';
     renameBtn.setAttribute('aria-label', 'Rename ' + g.name);
     renameBtn.onclick = async () => {
-      const name = prompt('New name for ' + g.name, g.name);
-      if (name === null || !name.trim() || name.trim() === g.name) return;
+      const r = await confirmDialog({
+        title: 'Rename workgroup',
+        body: 'Members, standings and the leaderboard are unaffected.',
+        confirmText: 'Rename',
+        input: { label: 'New name for ' + g.name, value: g.name, maxLength: 120 }
+      });
+      if (!r.ok) return;
+      const name = String(r.value || '').trim();
+      if (!name || name === g.name) return;
       try {
         await api('/admin/workgroups', {
-          method: 'POST', body: JSON.stringify({ id: g.id, name: name.trim() })
+          method: 'POST', body: JSON.stringify({ id: g.id, name })
         });
         loadGroups();
         loadUsers();
@@ -228,9 +359,12 @@ async function loadGroups() {
       delBtn.onclick = async () => {
         const where = fallback ? fallback.name : 'the default group';
         const msg = g.members
-          ? `Delete ${g.name}? Its ${g.members} member${g.members === 1 ? ' moves' : 's move'} to ${where}. Nobody is removed.`
-          : `Delete ${g.name}? It has no members.`;
-        if (!confirm(msg)) return;
+          ? `Its ${g.members} member${g.members === 1 ? ' moves' : 's move'} to ${where}. Nobody is removed.`
+          : 'It has no members.';
+        const r = await confirmDialog({
+          title: 'Delete ' + g.name + '?', body: msg, confirmText: 'Delete', danger: true
+        });
+        if (!r.ok) return;
         try {
           await api('/admin/workgroups/' + encodeURIComponent(g.id), { method: 'DELETE' });
           loadGroups();
@@ -309,7 +443,12 @@ async function runBulk(action, extra) {
     });
     // Reported rather than assumed: the server skips names that no longer
     // exist, so "2 selected" and "2 changed" are not the same claim.
-    alert(`${action}: ${r.affected} of ${r.requested} users changed.`);
+    messageDialog({
+      title: 'Bulk ' + action + ' complete',
+      body: r.affected === r.requested ? ''
+        : 'Names the server no longer has are skipped, so these two can differ.',
+      rows: [['Requested', r.requested], ['Changed', r.affected]]
+    });
     selected = new Set();
     loadUsers();
     loadGroups().catch(() => {});
@@ -319,7 +458,16 @@ async function runBulk(action, extra) {
   }
 }
 
+/* Two user loads can be in flight at once -- the search box debounces one
+   while a filter change fires another immediately -- and nothing makes the
+   responses come back in the order they were asked for. Without this the
+   SLOWER, older answer paints last and the table ends up showing a result
+   set the filters on screen no longer describe. Each load takes a ticket;
+   a load that is no longer the newest throws its answer away. */
+let usersLoadSeq = 0;
+
 async function loadUsers() {
+  const seq = ++usersLoadSeq;
   const q = encodeURIComponent($('#user-search').value.trim());
   // '' (the "All workgroups" option) sends 0, which the server reads as
   // "every group" rather than as a group that happens to have id 0.
@@ -330,11 +478,13 @@ async function loadUsers() {
   try {
     data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&status=${status}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`);
   } catch (err) {
+    if (seq !== usersLoadSeq) return;
     clearChildren(tbody);
     stateRow(tbody, 10, 'Could not load', 'The list is unavailable, not empty.');
     handleError(err, 'Loading users', () => loadUsers());
     return;
   }
+  if (seq !== usersLoadSeq) return;   // a newer load is already on its way
   clearChildren(tbody);
   selected = new Set();
 
@@ -362,6 +512,10 @@ async function loadUsers() {
     const pick = document.createElement('input');
     pick.type = 'checkbox';
     pick.className = 'row-select';
+    // The username travels as data, not as label prose. select-all used to
+    // recover it by stripping "Select " off the aria-label, which quietly
+    // tied bulk actions to the exact wording of a screen-reader string.
+    pick.dataset.username = u.username;
     pick.setAttribute('aria-label', 'Select ' + u.username);
     pick.onchange = () => {
       if (pick.checked) selected.add(u.username); else selected.delete(u.username);
@@ -429,7 +583,12 @@ async function loadUsers() {
       accessBtn.textContent = 'Revoke';
       accessBtn.setAttribute('aria-label', 'Revoke ' + u.username);
       accessBtn.onclick = async () => {
-        if (!confirm(`Revoke access for ${u.username}? Their leaderboard history is kept.`)) return;
+        const r = await confirmDialog({
+          title: 'Revoke access?',
+          body: `${u.username} loses access to the assistant. Their leaderboard history is kept, and Restore puts it back.`,
+          confirmText: 'Revoke', danger: true
+        });
+        if (!r.ok) return;
         try {
           await api('/admin/users/' + encodeURIComponent(u.username), { method: 'DELETE' });
           loadUsers();
@@ -822,7 +981,12 @@ async function loadTemplates() {
     del.textContent = 'Delete';
     del.setAttribute('aria-label', 'Delete global template');
     del.onclick = async () => {
-      if (!confirm('Delete this global template? Reviewers lose it from their dropdown.')) return;
+      const r = await confirmDialog({
+        title: 'Delete global template?',
+        body: 'Reviewers lose it from their dropdown. Anything already written into a case is untouched.',
+        confirmText: 'Delete', danger: true
+      });
+      if (!r.ok) return;
       try {
         await api('/admin/templates/' + t.id, { method: 'DELETE' });
         loadTemplates();
@@ -873,7 +1037,12 @@ async function loadTemplates() {
     del.textContent = 'Delete';
     del.setAttribute('aria-label', 'Delete ' + t.username + '’s template');
     del.onclick = async () => {
-      if (!confirm(`Delete this template saved by ${t.username}?`)) return;
+      const r = await confirmDialog({
+        title: 'Delete this template?',
+        body: `Saved by ${t.username}. It disappears from their dropdown.`,
+        confirmText: 'Delete', danger: true
+      });
+      if (!r.ok) return;
       try {
         await api('/admin/templates/' + t.id, { method: 'DELETE' });
         loadTemplates();
@@ -1000,7 +1169,10 @@ async function loadGreetings() {
     del.textContent = 'Delete';
     del.setAttribute('aria-label', 'Delete this greeting');
     del.onclick = async () => {
-      if (!confirm('Delete this greeting?')) return;
+      const r = await confirmDialog({
+        title: 'Delete this greeting?', body: g.body, confirmText: 'Delete', danger: true
+      });
+      if (!r.ok) return;
       try {
         await api('/admin/greetings/' + g.id, { method: 'DELETE' });
         loadGreetings();
@@ -1073,9 +1245,24 @@ function statCard(label, value, sub) {
   return card;
 }
 
+/* The header bar and the Overview cards are two readers of one answer,
+   and start() loads them together -- which used to mean two /admin/stats
+   round trips per boot for identical data. Callers in the same tick share
+   the in-flight request; the next tick gets a fresh one, so nothing here
+   caches a stale number. D1 allows 50 queries per invocation, and paying
+   twice for one answer is the cheapest waste in the panel to remove. */
+let statsInFlight = null;
+function fetchStats() {
+  if (!statsInFlight) {
+    statsInFlight = api('/admin/stats');
+    statsInFlight.catch(() => {}).then(() => { statsInFlight = null; });
+  }
+  return statsInFlight;
+}
+
 async function loadOverview() {
   const [stats, actions] = await Promise.all([
-    api('/admin/stats'),
+    fetchStats(),
     api('/admin/actions?limit=15').catch(() => ({ actions: [] }))
   ]);
 
@@ -1294,7 +1481,10 @@ async function exportAudit() {
   try {
     const data = await api('/admin/rejects?limit=500');
     const rows = data.rejects || [];
-    if (!rows.length) { alert('The audit log is empty; nothing to export.'); return; }
+    if (!rows.length) {
+      await messageDialog({ title: 'Nothing to export', body: 'The audit log is empty.' });
+      return;
+    }
 
     const csv = [['when', 'timestamp_ms', 'username', 'reason', 'detail'].join(',')]
       .concat(rows.map((r) => [
@@ -1326,7 +1516,7 @@ async function exportAudit() {
 }
 
 async function loadStats() {
-  const s = await api('/admin/stats');
+  const s = await fetchStats();
   const age = s.snapshotAgeMs === null ? 'never built' : Math.round(s.snapshotAgeMs / 60000) + ' min ago';
   $('#stats-bar').textContent =
     `${s.users.authorized} active · ${s.users.revoked} revoked · ${s.themes.enabled}/${s.themes.total} themes · board ${age}`;
@@ -1412,7 +1602,7 @@ $('#select-all').onchange = () => {
   const on = $('#select-all').checked;
   for (const box of document.querySelectorAll('.row-select')) {
     box.checked = on;
-    const name = box.getAttribute('aria-label').replace(/^Select /, '');
+    const name = box.dataset.username;
     if (on) selected.add(name); else selected.delete(name);
   }
   syncBulkBar();
@@ -1422,8 +1612,14 @@ $('#bulk-clear-btn').onclick = () => {
   for (const box of document.querySelectorAll('.row-select')) box.checked = false;
   syncBulkBar();
 };
-$('#bulk-revoke-btn').onclick = () => {
-  if (!confirm(`Revoke ${selected.size} user(s)? Their history is kept.`)) return;
+$('#bulk-revoke-btn').onclick = async () => {
+  const n = selected.size;
+  const r = await confirmDialog({
+    title: `Revoke ${n} user${n === 1 ? '' : 's'}?`,
+    body: 'They lose access to the assistant. Their leaderboard history is kept, and Restore puts it back.',
+    confirmText: 'Revoke', danger: true
+  });
+  if (!r.ok) return;
   runBulk('revoke');
 };
 $('#bulk-restore-btn').onclick = () => runBulk('restore');
@@ -1432,16 +1628,17 @@ $('#bulk-move-btn').onclick = () => {
   if (!id) return;
   runBulk('move', { workgroup_id: id });
 };
-$('#bulk-delete-btn').onclick = () => {
+$('#bulk-delete-btn').onclick = async () => {
   // Typing the count is the same guard the single-user delete uses, scaled
   // to a batch: the destructive path should cost a deliberate keystroke.
-  const answer = prompt(
-    `This removes ${selected.size} user(s) from the allow-list and hides them from the leaderboard.
-` +
-    `Their review history is kept.
-
-Type ${selected.size} to confirm.`);
-  if (answer === null || answer.trim() !== String(selected.size)) return;
+  const n = selected.size;
+  const r = await confirmDialog({
+    title: `Delete ${n} user${n === 1 ? '' : 's'}?`,
+    body: 'This removes them from the allow-list and hides them from the leaderboard. Their review history is kept, so re-adding the same username restores everything.',
+    confirmText: 'Delete', danger: true,
+    typeToConfirm: String(n)
+  });
+  if (!r.ok) return;
   runBulk('delete');
 };
 
@@ -1601,13 +1798,23 @@ $('#refresh-audit-btn').onclick = () => loadAudit().catch((err) => handleError(e
 $('#export-audit-btn').onclick = () => exportAudit();
 
 $('#clear-audit-btn').onclick = async () => {
-  if (!confirm('Clear the audit log? Export it first if you want a copy — this cannot be undone. The clearing itself is recorded.')) return;
+  const r0 = await confirmDialog({
+    title: 'Clear the audit log?',
+    body: 'Export it first if you want a copy — this cannot be undone. The clearing itself is recorded.',
+    confirmText: 'Clear log', danger: true
+  });
+  if (!r0.ok) return;
   const btn = $('#clear-audit-btn');
   btn.disabled = true;
   try {
     const r = await api('/admin/rejects', { method: 'DELETE' });
     loadAudit();
-    alert(r.cleared ? `Cleared ${r.cleared} ${r.cleared === 1 ? 'entry' : 'entries'}.` : 'The log was already empty.');
+    await messageDialog({
+      title: 'Audit log cleared',
+      body: r.cleared
+        ? `Removed ${r.cleared} ${r.cleared === 1 ? 'entry' : 'entries'}.`
+        : 'The log was already empty.'
+    });
   } catch (err) {
     handleError(err, 'Clearing the audit log');
   } finally {
@@ -1672,13 +1879,16 @@ $('#bulk-dialog').addEventListener('close', async () => {
     const r = await api('/admin/users/bulk', {
       method: 'POST', body: JSON.stringify({ usernames, workgroup_id: groupId })
     });
-    alert(
-      `Submitted ${usernames.length} into ${groupName}.\n` +
-      `Added: ${r.added}\n` +
-      `Already existing: ${r.existing}\n` +
-      `Duplicates in list: ${r.duplicates}\n` +
-      `Invalid: ${r.invalid}`
-    );
+    await messageDialog({
+      title: 'Bulk add complete',
+      body: `Submitted ${usernames.length} name${usernames.length === 1 ? '' : 's'} into ${groupName}.`,
+      rows: [
+        ['Added', r.added],
+        ['Already existing', r.existing],
+        ['Duplicates in list', r.duplicates],
+        ['Invalid', r.invalid]
+      ]
+    });
     $('#f-bulk').value = '';
     page = 0;
     loadUsers();

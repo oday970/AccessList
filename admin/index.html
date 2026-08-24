@@ -279,13 +279,6 @@
 
   <section id="tab-audit" class="tab" role="tabpanel" aria-labelledby="tab-btn-audit" tabindex="0" hidden>
     <h2>Audit</h2>
-    <p class="hint-strong">Refused writes. This table should stay near-empty; entries mean malformed or forged requests.</p>
-    <div class="toolbar">
-      <button id="refresh-audit-btn">Refresh</button>
-      <button id="export-audit-btn">Export CSV</button>
-      <span class="spacer"></span>
-      <button id="clear-audit-btn" class="danger">Clear log</button>
-    </div>
     <h2>Admin actions</h2>
     <p class="hint">What was changed in this panel. There is a single admin password, so this
     records <b>what</b> was done, not <b>who</b> did it.</p>
@@ -294,7 +287,16 @@
         <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
         <tbody></tbody></table>
     </div>
+    <h2>Refused writes</h2>
+    <p class="hint-strong">This table should stay near-empty; entries mean malformed or forged requests.</p>
+    <!-- The toolbar sits with the table it acts on. It used to head the
+         whole tab, which put "Clear log" a screenful above the log it
+         clears and directly under a different table entirely. -->
     <div class="toolbar">
+      <button id="refresh-audit-btn">Refresh</button>
+      <button id="export-audit-btn">Export CSV</button>
+      <span class="spacer"></span>
+      <button id="clear-audit-btn" class="danger">Clear log</button>
     </div>
     <div class="table-wrap">
       <table id="audit-table">
@@ -394,6 +396,41 @@
     <menu>
       <button type="submit" value="cancel" formnovalidate id="f-bulk-cancel">Cancel</button>
       <button type="submit" value="save" id="f-bulk-save" class="primary">Add all</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- Everything the panel asks or reports goes through these two rather
+     than window.confirm/alert/prompt. See the comment above confirmDialog
+     in admin.js for why the native ones had to go. -->
+<dialog id="confirm-dialog">
+  <form method="dialog" id="confirm-form">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-body"></p>
+    <div id="confirm-extra"></div>
+    <label id="confirm-input-wrap" hidden><span id="confirm-input-label"></span>
+      <input id="confirm-input" autocomplete="off" maxlength="200">
+    </label>
+    <label id="confirm-type-wrap" hidden>Type <b><span id="confirm-type-want"></span></b> to confirm
+      <input id="confirm-type" autocomplete="off">
+    </label>
+    <menu>
+      <button type="submit" value="cancel" formnovalidate id="confirm-cancel">Cancel</button>
+      <button type="submit" value="ok" id="confirm-ok" class="primary">Confirm</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="msg-dialog">
+  <form method="dialog" id="msg-form">
+    <h2 id="msg-title"></h2>
+    <p id="msg-body"></p>
+    <div class="table-wrap" id="msg-rows-wrap" hidden>
+      <table id="msg-rows"><tbody></tbody></table>
+    </div>
+    <div id="msg-lists"></div>
+    <menu>
+      <button type="submit" value="ok" id="msg-ok" class="primary">Close</button>
     </menu>
   </form>
 </dialog>
