@@ -948,8 +948,27 @@ async function loadTemplates() {
     grip.className = 'grip';
     grip.draggable = true;
     grip.textContent = '☰';
-    grip.title = 'Drag to reorder';
-    grip.setAttribute('aria-label', 'Drag to reorder this template');
+    grip.title = 'Drag, or focus and press the up and down arrows, to reorder';
+    /* Focusable and announced as a control. It was a bare <span> carrying
+       an aria-label, which a screen reader will read out but a keyboard
+       cannot reach -- so reordering global templates was mouse-only in a
+       panel that is otherwise fully navigable. */
+    grip.tabIndex = 0;
+    grip.setAttribute('role', 'button');
+    grip.setAttribute('aria-label', 'Reorder this template');
+    grip.onkeydown = (e) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      const sibling = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
+      // Nothing to swap with at the ends. Returning before preventDefault
+      // leaves the keypress to the browser rather than swallowing it.
+      if (!sibling || !sibling.dataset.id) return;
+      e.preventDefault();
+      if (e.key === 'ArrowUp') globalBody.insertBefore(tr, sibling);
+      else globalBody.insertBefore(sibling, tr);
+      // The row moved out from under the focus ring; put it back.
+      grip.focus();
+      saveTemplateOrder(globalBody);
+    };
     grip.ondragstart = (e) => {
       dragRow = tr;
       tr.classList.add('dragging');
@@ -1119,10 +1138,83 @@ const timeToMin = (v) => {
   return mins === 1439 ? END_OF_DAY : mins;
 };
 
+/* Which minutes of the day at least one ENABLED greeting covers.
+
+   A window may wrap midnight (21:00-05:00), which is exactly why this is
+   worth drawing: two windows that look adjacent in the table can leave a
+   hole, and a wrapping one looks like a mistake until you see it join up
+   at both ends. A wrapping window counts as two spans. */
+const DAY_MINUTES = 1440;
+
+function coverageSpans(greetings) {
+  const covered = [];
+  for (const g of greetings) {
+    if (!g.enabled) continue;
+    const start = Math.max(0, Math.min(DAY_MINUTES, Number(g.start_min) || 0));
+    const end = Math.max(0, Math.min(DAY_MINUTES, Number(g.end_min) || 0));
+    if (start === end) continue;                     // an empty window covers nothing
+    if (start < end) covered.push([start, end]);
+    else { covered.push([start, DAY_MINUTES]); covered.push([0, end]); }
+  }
+  covered.sort((a, b) => a[0] - b[0]);
+
+  const merged = [];
+  for (const span of covered) {
+    const last = merged[merged.length - 1];
+    if (last && span[0] <= last[1]) last[1] = Math.max(last[1], span[1]);
+    else merged.push([span[0], span[1]]);
+  }
+  return merged;
+}
+
+function coverageGaps(spans) {
+  const gaps = [];
+  let at = 0;
+  for (const span of spans) {
+    if (span[0] > at) gaps.push([at, span[0]]);
+    at = Math.max(at, span[1]);
+  }
+  if (at < DAY_MINUTES) gaps.push([at, DAY_MINUTES]);
+  return gaps;
+}
+
+function renderCoverage(greetings) {
+  const el = $('#greet-coverage');
+  clearChildren(el);
+
+  const spans = coverageSpans(greetings);
+  const gaps = coverageGaps(spans);
+
+  const bar = document.createElement('div');
+  bar.className = 'coverage-bar';
+  for (const span of spans) {
+    const seg = document.createElement('span');
+    seg.className = 'coverage-seg';
+    seg.style.left = (span[0] / DAY_MINUTES * 100) + '%';
+    seg.style.width = ((span[1] - span[0]) / DAY_MINUTES * 100) + '%';
+    seg.title = minToTime(span[0]) + '-' + minToTime(span[1]);
+    bar.appendChild(seg);
+  }
+  el.appendChild(bar);
+
+  const note = document.createElement('p');
+  note.className = 'hint';
+  if (!spans.length) {
+    note.textContent = 'No greeting is shown at any hour — everyone falls back to the built-in messages.';
+  } else if (!gaps.length) {
+    note.textContent = 'Covered all day.';
+  } else {
+    note.textContent = 'No greeting between ' +
+      gaps.map((g) => minToTime(g[0]) + ' and ' + minToTime(g[1])).join(', and between ') + '.';
+  }
+  el.appendChild(note);
+}
+
 async function loadGreetings() {
   const data = await api('/admin/greetings');
   const tbody = $('#greet-table tbody');
   clearChildren(tbody);
+  renderCoverage(data.greetings || []);
 
   if (!(data.greetings || []).length) {
     stateRow(tbody, 5, 'No greetings', 'The assistant falls back to its built-in messages.');
@@ -1343,7 +1435,17 @@ async function loadOverview() {
    all; the only setting reachable before this was defaultTheme, tucked
    inside the Themes tab. */
 async function loadSettings() {
-  const data = await api('/admin/settings');
+  /* The theme list comes along so defaultTheme can be a choice instead of
+     a typed string. The server refuses a disabled theme as the default
+     with a 400, and that refusal is unreachable from a list of the ones
+     actually enabled. A failure here is not fatal: the row falls back to
+     the free-text input it has always been. */
+  const [data, themes] = await Promise.all([
+    api('/admin/settings'),
+    api('/admin/themes').catch(() => null)
+  ]);
+  const enabledThemes = themes && Array.isArray(themes.themes)
+    ? themes.themes.filter((t) => t.enabled) : [];
   const tbody = $('#settings-table tbody');
   clearChildren(tbody);
 
@@ -1359,24 +1461,56 @@ async function loadSettings() {
     tdKey.textContent = key;
 
     const tdVal = document.createElement('td');
-    const input = document.createElement('input');
-    input.value = value;
-    input.maxLength = 200;
-    input.className = 'tpl-edit';
-    input.setAttribute('aria-label', 'Value for ' + key);
-    let last = value;
-    input.onchange = async () => {
-      const next = input.value;
-      if (next === last) return;
+    const save = async (next, last, revert) => {
+      if (next === last) return last;
       try {
         await api('/admin/settings', { method: 'POST', body: JSON.stringify({ settings: { [key]: next } }) });
-        last = next;
+        return next;
       } catch (err) {
-        input.value = last;
+        revert();
         handleError(err, 'Saving ' + key);
+        return last;
       }
     };
-    tdVal.appendChild(input);
+
+    if (key === 'defaultTheme' && enabledThemes.length) {
+      const sel = document.createElement('select');
+      sel.className = 'tpl-edit';
+      sel.setAttribute('aria-label', 'Value for ' + key);
+      for (const t of enabledThemes) {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = (t.emoji ? t.emoji + ' ' : '') + t.label;
+        if (t.id === value) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      /* A default that is no longer among the enabled themes would
+         otherwise drop off the list and silently reselect whichever theme
+         happens to be first -- saving nothing, but showing a lie. */
+      if (!enabledThemes.some((t) => t.id === value)) {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = value + ' (not enabled)';
+        opt.selected = true;
+        sel.insertBefore(opt, sel.firstChild);
+      }
+      let last = value;
+      sel.onchange = async () => {
+        last = await save(sel.value, last, () => { sel.value = last; });
+      };
+      tdVal.appendChild(sel);
+    } else {
+      const input = document.createElement('input');
+      input.value = value;
+      input.maxLength = 200;
+      input.className = 'tpl-edit';
+      input.setAttribute('aria-label', 'Value for ' + key);
+      let last = value;
+      input.onchange = async () => {
+        last = await save(input.value, last, () => { input.value = last; });
+      };
+      tdVal.appendChild(input);
+    }
 
     const tdActs = document.createElement('td');
     tdActs.className = 'acts';
@@ -1504,6 +1638,22 @@ function toCsvCell(v) {
   return '"' + safe.replace(/"/g, '""') + '"';
 }
 
+/* Shared by both exports. The BOM is what makes Excel read the file as
+   UTF-8 rather than the system codepage, and the revoke is deferred a
+   turn because revoking synchronously races the download in some browsers
+   and yields an empty file. */
+function downloadCsv(filename, csv) {
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 async function exportAudit() {
   const btn = $('#export-audit-btn');
   btn.disabled = true;
@@ -1539,6 +1689,53 @@ async function exportAudit() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   } catch (err) {
     handleError(err, 'Exporting the audit log');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* Built from a fresh fetch rather than by scraping the rendered table --
+   the same rule the audit export follows, and for the same reason: the
+   page shows one 50-row page, and exporting what is on screen would hand
+   over a partial file with nothing to say anything was missing. The
+   filters and sort ARE carried over, because "export this view" is the
+   request; only the paging is dropped. */
+const USER_EXPORT_LIMIT = 5000;
+
+async function exportUsers() {
+  const btn = $('#export-users-btn');
+  btn.disabled = true;
+  try {
+    const q = encodeURIComponent($('#user-search').value.trim());
+    const wg = encodeURIComponent($('#user-group-filter').value || '0');
+    const status = encodeURIComponent($('#user-status-filter').value || 'all');
+    const data = await api(`/admin/users?q=${q}&workgroup_id=${wg}&status=${status}` +
+                           `&sort=${sortKey}&dir=${sortDir}&limit=${USER_EXPORT_LIMIT}&offset=0`);
+    const rows = data.users || [];
+    if (!rows.length) {
+      await messageDialog({ title: 'Nothing to export', body: 'No users match the current filters.' });
+      return;
+    }
+
+    const header = ['username', 'access', 'workgroup', 'rainbow', 'themes',
+                    'templates', 'last_seen', 'last_seen_ms', 'note'];
+    const csv = [header.join(',')].concat(rows.map((u) => [
+      toCsvCell(u.username),
+      toCsvCell(u.authorized ? 'active' : 'revoked'),
+      toCsvCell(u.workgroup || ''),
+      toCsvCell(u.rainbow ? 'yes' : 'no'),
+      toCsvCell(u.themes ? 'yes' : 'no'),
+      toCsvCell(u.templates ? 'yes' : 'no'),
+      // Blank, not 1970: a reviewer who has never pushed has no date, and
+      // an epoch zero in a spreadsheet reads as a real one.
+      toCsvCell(u.last_seen ? new Date(u.last_seen).toISOString() : ''),
+      toCsvCell(u.last_seen || ''),
+      toCsvCell(u.note)
+    ].join(','))).join('\r\n');
+
+    downloadCsv('cra-users-' + new Date().toISOString().slice(0, 10) + '.csv', csv);
+  } catch (err) {
+    handleError(err, 'Exporting the users');
   } finally {
     btn.disabled = false;
   }
@@ -1874,6 +2071,7 @@ $('#ach-dialog').addEventListener('close', async () => {
 
 $('#refresh-audit-btn').onclick = () => loadAudit().catch((err) => handleError(err, 'Refreshing the audit log'));
 $('#export-audit-btn').onclick = () => exportAudit();
+$('#export-users-btn').onclick = () => exportUsers();
 
 $('#clear-audit-btn').onclick = async () => {
   const r0 = await confirmDialog({

@@ -81,6 +81,7 @@
       </select>
       <button id="refresh-users-btn">Refresh</button>
       <span class="spacer"></span>
+      <button id="export-users-btn">Export CSV</button>
       <button id="add-user-btn" class="primary">Add user</button>
       <button id="bulk-btn">Bulk add</button>
     </div>
@@ -241,6 +242,10 @@
       <span class="spacer"></span>
       <span id="greet-preview" class="hint" aria-live="polite"></span>
     </div>
+    <!-- Windows wrap midnight and are read in each reviewer's own local
+         time, so a gap between them is close to impossible to see by
+         reading the rows. This draws the day and names what is missing. -->
+    <div id="greet-coverage" class="coverage" aria-live="polite"></div>
     <div class="table-wrap">
       <table id="greet-table">
         <caption>Greetings — edits save as you make them</caption>

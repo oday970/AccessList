@@ -466,3 +466,20 @@ dialog menu{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;margin:
 .sort-btn:hover{color:var(--text)}
 th[aria-sort="ascending"] .sort-btn,th[aria-sort="descending"] .sort-btn{color:var(--accent2)}
 .sort-arrow{font:inherit}
+
+/* ---- greeting coverage ---------------------------------------
+   Twenty-four hours drawn end to end with the covered spans filled in. A
+   window that wraps midnight shows as fills at both ends, which is the
+   whole point: in the table it reads as a mistake. */
+.coverage{margin:0 0 14px}
+.coverage-bar{
+  position:relative;height:12px;border-radius:6px;overflow:hidden;
+  background:var(--line);
+}
+.coverage-seg{position:absolute;top:0;bottom:0;background:var(--accent2);opacity:.8}
+.coverage .hint{margin:7px 0 0}
+
+/* The drag handle is a real control now: focusable, so it has to show
+   where the focus is. */
+.grip{cursor:grab}
+.grip:focus-visible{outline:2.5px solid var(--accent2);outline-offset:2px;border-radius:3px}
