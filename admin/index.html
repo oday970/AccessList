@@ -31,6 +31,10 @@
       CRA Admin
     </h1>
     <p id="stats-bar" aria-live="polite"></p>
+    <!-- A name this admin volunteers, stored for the tab and attached to
+         changes they make. It is not a login: there is one shared
+         password, and the log says so next to the column. -->
+    <button id="actor-btn">Set your name</button>
     <button id="logout">Sign out</button>
   </header>
 
@@ -61,7 +65,7 @@
     <h3>Recent admin activity</h3>
     <div class="table-wrap">
       <table id="ov-actions"><caption>Latest changes made in this panel</caption>
-        <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
+        <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
         <tbody></tbody></table>
     </div>
   </section>
@@ -289,11 +293,13 @@
   <section id="tab-audit" class="tab" role="tabpanel" aria-labelledby="tab-btn-audit" tabindex="0" hidden>
     <h2>Audit</h2>
     <h2>Admin actions</h2>
-    <p class="hint">What was changed in this panel. There is a single admin password, so this
-    records <b>what</b> was done, not <b>who</b> did it.</p>
+    <p class="hint">What was changed in this panel. There is a single admin password, so the
+    <b>Who</b> column is <b>self-reported</b>: it is a name whoever made the change typed into
+    this panel, not a verified identity. Anyone with the password can type anything, and a
+    blank means no name was given. Treat it as a note, not as proof.</p>
     <div class="table-wrap">
       <table id="admin-actions-table"><caption>Admin action log</caption>
-        <thead><tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
+        <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
         <tbody></tbody></table>
     </div>
     <h2>Refused writes</h2>

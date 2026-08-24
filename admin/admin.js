@@ -2,10 +2,21 @@
 
 const API = 'https://api.casereview.cc';
 const TOKEN_KEY = 'craAdminToken';
+const ACTOR_KEY = 'craAdminActor';
 
 // sessionStorage, not localStorage: the token dies with the tab, so a
 // shared machine does not leave an admin session behind.
 const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+
+/* A name this admin volunteers so their changes are attributable in the
+   action log. It is NOT a login and authorises nothing -- there is one
+   shared password, so anyone holding it can type any name. The log
+   labels the column self-reported for exactly that reason.
+
+   Stored beside the token and cleared with it: it describes this session
+   at this desk, and leaving it behind for whoever opens the tab next
+   would attach their changes to the last person's name. */
+const getActor = () => sessionStorage.getItem(ACTOR_KEY);
 const $ = (sel) => document.querySelector(sel);
 
 function clearChildren(el) {
@@ -23,11 +34,15 @@ let sortKey = 'username';
 let sortDir = 'asc';
 
 async function api(path, options = {}) {
+  const actor = getActor();
   const resp = await fetch(API + path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + getToken(),
+      // Omitted entirely when unset, so an unnamed session logs as
+      // unattributed rather than as an empty string pretending to be one.
+      ...(actor ? { 'X-CRA-Admin-Actor': actor } : {}),
       ...(options.headers || {})
     }
   });
@@ -38,6 +53,8 @@ async function api(path, options = {}) {
 
 function signOut() {
   sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(ACTOR_KEY);
+  renderActor();
   $('#app-view').hidden = true;
   $('#login-view').hidden = false;
 }
@@ -183,6 +200,31 @@ function messageDialog(opts) {
       resolve();
     });
   });
+}
+
+function renderActor() {
+  const btn = $('#actor-btn');
+  const name = getActor();
+  btn.textContent = name ? 'Name: ' + name : 'Set your name';
+  btn.setAttribute('aria-label', name
+    ? 'Your self-reported name is ' + name + '. Change it.'
+    : 'Set the name recorded against changes you make');
+}
+
+async function askActor() {
+  const r = await confirmDialog({
+    title: 'Your name',
+    body: 'Recorded next to changes you make, so the action log reads as more than a timeline. '
+        + 'This is not a login — there is one shared password, and the log shows this name as '
+        + 'self-reported. Leave it blank to stay unattributed.',
+    confirmText: 'Save',
+    input: { label: 'Name', value: getActor() || '', maxLength: 64 }
+  });
+  if (!r.ok) return;
+  const name = String(r.value || '').trim();
+  if (name) sessionStorage.setItem(ACTOR_KEY, name);
+  else sessionStorage.removeItem(ACTOR_KEY);
+  renderActor();
 }
 
 async function signIn(password) {
@@ -1325,13 +1367,26 @@ function renderActions(tbody, rows, colspan) {
     const tr = document.createElement('tr');
     const when = document.createElement('td');
     when.textContent = new Date(a.ts).toLocaleString();
+    /* Every row written before the name existed, and every request that
+       sent none, is genuinely unattributed -- and has to read that way
+       rather than borrowing the name above it. */
+    const who = document.createElement('td');
+    if (a.actor) {
+      who.textContent = a.actor;
+    } else {
+      const none = document.createElement('span');
+      none.className = 'flag no';
+      none.textContent = '—';
+      none.title = 'No name was given';
+      who.appendChild(none);
+    }
     const what = document.createElement('td');
     what.textContent = a.action;
     const target = document.createElement('td');
     target.textContent = a.target || '';
     const detail = document.createElement('td');
     detail.textContent = a.detail || '';
-    tr.appendChild(when); tr.appendChild(what);
+    tr.appendChild(when); tr.appendChild(who); tr.appendChild(what);
     tr.appendChild(target); tr.appendChild(detail);
     tbody.appendChild(tr);
   }
@@ -1339,7 +1394,7 @@ function renderActions(tbody, rows, colspan) {
 
 async function loadAdminActions() {
   const data = await api('/admin/actions?limit=200');
-  renderActions($('#admin-actions-table tbody'), data.actions || [], 4);
+  renderActions($('#admin-actions-table tbody'), data.actions || [], 5);
 }
 
 /* ---- Phase 7: overview -------------------------------------------
@@ -1427,7 +1482,7 @@ async function loadOverview() {
     }
   }
 
-  renderActions($('#ov-actions tbody'), actions.actions || [], 4);
+  renderActions($('#ov-actions tbody'), actions.actions || [], 5);
 }
 
 /* ---- Phase 8: settings -------------------------------------------
@@ -1756,6 +1811,9 @@ $('#login-form').onsubmit = async (e) => {
   try {
     await signIn($('#password').value);
     $('#password').value = '';
+    // Asked once, here: sessionStorage dies with the tab, so a token
+    // present on boot means this tab already signed in and was asked.
+    await askActor();
     // start() failing is not a bad password — it raises its own banner
     // rather than telling the admin their credentials were wrong.
     start().catch((e2) => handleError(e2, 'Loading the panel', () => start().catch(() => {})));
@@ -1766,6 +1824,8 @@ $('#login-form').onsubmit = async (e) => {
 };
 
 $('#logout').onclick = signOut;
+$('#actor-btn').onclick = () => askActor();
+renderActor();
 
 /* A real tablist: aria-selected carries the state the CSS paints, and a
    roving tabindex means one Tab stop for the strip with arrows inside it. */
