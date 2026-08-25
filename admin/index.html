@@ -17,6 +17,9 @@
       CRA Admin
     </h1>
     <p class="hint">Manages the Case Review Assistant allow-list.</p>
+    <label for="username">Username</label>
+    <input id="username" type="text" autocomplete="username" autocapitalize="off"
+           autocorrect="off" spellcheck="false" required>
     <label for="password">Password</label>
     <input id="password" type="password" autocomplete="current-password" required>
     <button type="submit" class="primary">Sign in</button>
@@ -31,10 +34,10 @@
       CRA Admin
     </h1>
     <p id="stats-bar" aria-live="polite"></p>
-    <!-- A name this admin volunteers, stored for the tab and attached to
-         changes they make. It is not a login: there is one shared
-         password, and the log says so next to the column. -->
-    <button id="actor-btn">Set your name</button>
+    <!-- Who is signed in, read off the session token. Not editable, and
+         not a claim: login takes a username, and the action log records
+         the same name from the same token. -->
+    <p id="whoami"></p>
     <button id="logout">Sign out</button>
   </header>
 
@@ -94,6 +97,7 @@
       <label for="bulk-move-group" class="sr-only">Move selected to workgroup</label>
       <select id="bulk-move-group"></select>
       <button id="bulk-move-btn">Move</button>
+      <button id="bulk-features-btn">Edit features</button>
       <button id="bulk-restore-btn">Restore</button>
       <button id="bulk-revoke-btn" class="danger">Revoke</button>
       <button id="bulk-delete-btn" class="danger">Delete</button>
@@ -293,10 +297,10 @@
   <section id="tab-audit" class="tab" role="tabpanel" aria-labelledby="tab-btn-audit" tabindex="0" hidden>
     <h2>Audit</h2>
     <h2>Admin actions</h2>
-    <p class="hint">What was changed in this panel. There is a single admin password, so the
-    <b>Who</b> column is <b>self-reported</b>: it is a name whoever made the change typed into
-    this panel, not a verified identity. Anyone with the password can type anything, and a
-    blank means no name was given. Treat it as a note, not as proof.</p>
+    <p class="hint">What was changed in this panel. The <b>Who</b> column is the admin account
+    that was signed in, taken from the session rather than typed in, so it cannot be set to
+    someone else's name. It identifies the <i>account</i>: sharing the credentials still means
+    sharing the identity. A dash means the entry predates named sign-in.</p>
     <div class="table-wrap">
       <table id="admin-actions-table"><caption>Admin action log</caption>
         <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Target</th><th scope="col">Detail</th></tr></thead>
@@ -406,11 +410,66 @@
     <label>Workgroup for everyone added
       <select id="f-bulk-workgroup"></select>
     </label>
+    <!-- What everyone added gets. Existing names in the paste are left
+         alone entirely, capabilities included, so these apply only to
+         the users actually created. -->
+    <fieldset>
+      <legend>Capabilities for everyone added</legend>
+      <label class="inline"><input id="f-bulk-rainbow" type="checkbox"> Rainbow name</label>
+      <label class="inline"><input id="f-bulk-themes" type="checkbox" checked> Theme picker</label>
+      <label class="inline"><input id="f-bulk-templates" type="checkbox" checked> Status templates</label>
+    </fieldset>
     <label for="f-bulk" class="sr-only">Usernames, one per line</label>
     <textarea id="f-bulk" rows="12"></textarea>
     <menu>
       <button type="submit" value="cancel" formnovalidate id="f-bulk-cancel">Cancel</button>
       <button type="submit" value="save" id="f-bulk-save" class="primary">Add all</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- Mass-edit the capabilities of a selection.
+
+     Every control starts at "Leave unchanged" and only the ones actually
+     moved are sent, so turning the theme picker on for forty people
+     cannot quietly reset the other three settings of every one of them.
+     Three states is why these are selects and not checkboxes: a checkbox
+     has no way to say "don't touch this". -->
+<dialog id="features-dialog">
+  <form method="dialog" id="features-form">
+    <h2>Edit features</h2>
+    <p class="hint" id="features-count"></p>
+    <label>Access
+      <select id="bf-authorized">
+        <option value="">Leave unchanged</option>
+        <option value="on">Authorized</option>
+        <option value="off">Revoked</option>
+      </select>
+    </label>
+    <label>Rainbow name
+      <select id="bf-rainbow">
+        <option value="">Leave unchanged</option>
+        <option value="on">On</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <label>Theme picker
+      <select id="bf-themes">
+        <option value="">Leave unchanged</option>
+        <option value="on">On</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <label>Status templates
+      <select id="bf-templates">
+        <option value="">Leave unchanged</option>
+        <option value="on">On</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+    <menu>
+      <button type="submit" value="cancel" formnovalidate id="f-features-cancel">Cancel</button>
+      <button type="submit" value="save" id="f-features-save" class="primary">Apply</button>
     </menu>
   </form>
 </dialog>

@@ -2,21 +2,35 @@
 
 const API = 'https://api.casereview.cc';
 const TOKEN_KEY = 'craAdminToken';
-const ACTOR_KEY = 'craAdminActor';
 
 // sessionStorage, not localStorage: the token dies with the tab, so a
 // shared machine does not leave an admin session behind.
 const getToken = () => sessionStorage.getItem(TOKEN_KEY);
 
-/* A name this admin volunteers so their changes are attributable in the
-   action log. It is NOT a login and authorises nothing -- there is one
-   shared password, so anyone holding it can type any name. The log
-   labels the column self-reported for exactly that reason.
+/* The admin account this tab is signed in as, read out of the session
+   token's payload.
 
-   Stored beside the token and cleared with it: it describes this session
-   at this desk, and leaving it behind for whoever opens the tab next
-   would attach their changes to the last person's name. */
-const getActor = () => sessionStorage.getItem(ACTOR_KEY);
+   Display only -- the server reads the same name off the same token to
+   attribute the action log, and takes nothing on that subject from the
+   panel. So this cannot be wrong in a way that matters: at worst the
+   header shows nothing while the log still records correctly.
+
+   Decoding is deliberately forgiving. The signature is NOT checked here
+   and could not be: only the worker holds the key. A token this fails to
+   parse is one the server will reject anyway, and throwing during boot
+   over a cosmetic string would take the whole panel down with it. */
+function tokenName() {
+  try {
+    const body = String(getToken() || '').split('.')[0];
+    if (!body) return '';
+    const pad = body.replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(pad + '='.repeat((4 - (pad.length % 4)) % 4));
+    const name = JSON.parse(json).name;
+    return typeof name === 'string' ? name : '';
+  } catch (e) {
+    return '';
+  }
+}
 const $ = (sel) => document.querySelector(sel);
 
 function clearChildren(el) {
@@ -34,15 +48,11 @@ let sortKey = 'username';
 let sortDir = 'asc';
 
 async function api(path, options = {}) {
-  const actor = getActor();
   const resp = await fetch(API + path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + getToken(),
-      // Omitted entirely when unset, so an unnamed session logs as
-      // unattributed rather than as an empty string pretending to be one.
-      ...(actor ? { 'X-CRA-Admin-Actor': actor } : {}),
       ...(options.headers || {})
     }
   });
@@ -53,8 +63,7 @@ async function api(path, options = {}) {
 
 function signOut() {
   sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(ACTOR_KEY);
-  renderActor();
+  renderWhoami();
   $('#app-view').hidden = true;
   $('#login-view').hidden = false;
 }
@@ -202,36 +211,18 @@ function messageDialog(opts) {
   });
 }
 
-function renderActor() {
-  const btn = $('#actor-btn');
-  const name = getActor();
-  btn.textContent = name ? 'Name: ' + name : 'Set your name';
-  btn.setAttribute('aria-label', name
-    ? 'Your self-reported name is ' + name + '. Change it.'
-    : 'Set the name recorded against changes you make');
+function renderWhoami() {
+  const el = $('#whoami');
+  if (!el) return;
+  const name = tokenName();
+  el.textContent = name ? 'Signed in as ' + name : '';
 }
 
-async function askActor() {
-  const r = await confirmDialog({
-    title: 'Your name',
-    body: 'Recorded next to changes you make, so the action log reads as more than a timeline. '
-        + 'This is not a login — there is one shared password, and the log shows this name as '
-        + 'self-reported. Leave it blank to stay unattributed.',
-    confirmText: 'Save',
-    input: { label: 'Name', value: getActor() || '', maxLength: 64 }
-  });
-  if (!r.ok) return;
-  const name = String(r.value || '').trim();
-  if (name) sessionStorage.setItem(ACTOR_KEY, name);
-  else sessionStorage.removeItem(ACTOR_KEY);
-  renderActor();
-}
-
-async function signIn(password) {
+async function signIn(username, password) {
   const resp = await fetch(API + '/admin/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ username, password })
   });
   if (!resp.ok) {
     // A locked-out IP gets the exact same 401 body as a wrong password
@@ -244,7 +235,10 @@ async function signIn(password) {
       const mins = Math.max(1, Math.ceil(secs / 60));
       throw new Error(`Too many attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`);
     }
-    throw new Error('Invalid password');
+    /* The server answers a wrong username and a wrong password
+       identically, on purpose -- saying which was wrong would confirm the
+       username to someone guessing. So this message names neither. */
+    throw new Error('Invalid username or password');
   }
   const { token } = await resp.json();
   sessionStorage.setItem(TOKEN_KEY, token);
@@ -492,8 +486,18 @@ async function runBulk(action, extra) {
     });
     // Reported rather than assumed: the server skips names that no longer
     // exist, so "2 selected" and "2 changed" are not the same claim.
+    /* 'Bulk features complete' does not read as English, and this title is
+       the first thing an admin sees after a mass edit. Named actions get a
+       phrase; anything else falls back to the verb it was called with. */
+    const BULK_TITLES = {
+      revoke:   'Bulk revoke complete',
+      restore:  'Bulk restore complete',
+      delete:   'Bulk delete complete',
+      move:     'Bulk move complete',
+      features: 'Features updated'
+    };
     messageDialog({
-      title: 'Bulk ' + action + ' complete',
+      title: BULK_TITLES[action] || ('Bulk ' + action + ' complete'),
       body: r.affected === r.requested ? ''
         : 'Names the server no longer has are skipped, so these two can differ.',
       rows: [['Requested', r.requested], ['Changed', r.affected]]
@@ -910,9 +914,13 @@ function openUserDialog(user) {
   fillGroupSelect($('#f-workgroup'), user ? user.workgroup_id : null);
   $('#f-authorized').checked = user ? !!user.authorized : true;
   $('#f-rainbow').checked = user ? !!user.rainbow : false;
-  $('#f-themes').checked = user ? !!user.themes : false;
-  // Defaults to ticked for a new user: the capability is on for everyone and
-  // revoked case by case, unlike rainbow and themes above.
+  // Themes and templates default to ticked for a new user; rainbow does
+  // not. Both are capabilities everyone gets and that are revoked case by
+  // case, where rainbow changes how a name looks to everyone else on the
+  // board and so stays opt-in. Editing an existing user always shows what
+  // they actually have -- otherwise opening a row and pressing Save would
+  // grant a capability nobody chose to grant.
+  $('#f-themes').checked = user ? !!user.themes : true;
   $('#f-templates').checked = user ? !!user.templates : true;
   $('#f-note').value = user ? (user.note || '') : '';
   // returnValue is NOT reset by the dialog itself on an Escape-dismiss
@@ -1354,9 +1362,10 @@ async function loadGreetings() {
 
 
 /* ---- Phase 6: admin action log -----------------------------------
-   Records WHAT was done, not WHO -- there is a single admin password.
-   The UI says so next to the table rather than letting the column
-   headings imply an accountability trail this cannot provide. */
+   Records WHO as well as WHAT: the name comes off the signed session
+   token, so it identifies the admin account that was signed in rather
+   than a string somebody typed. The hint beside the table states the
+   remaining limit honestly -- shared credentials mean a shared identity. */
 function renderActions(tbody, rows, colspan) {
   clearChildren(tbody);
   if (!rows.length) {
@@ -1367,9 +1376,9 @@ function renderActions(tbody, rows, colspan) {
     const tr = document.createElement('tr');
     const when = document.createElement('td');
     when.textContent = new Date(a.ts).toLocaleString();
-    /* Every row written before the name existed, and every request that
-       sent none, is genuinely unattributed -- and has to read that way
-       rather than borrowing the name above it. */
+    /* Rows written before sign-in carried a username are genuinely
+       unattributed, and have to read that way rather than borrowing the
+       name above them. */
     const who = document.createElement('td');
     if (a.actor) {
       who.textContent = a.actor;
@@ -1377,7 +1386,7 @@ function renderActions(tbody, rows, colspan) {
       const none = document.createElement('span');
       none.className = 'flag no';
       none.textContent = '—';
-      none.title = 'No name was given';
+      none.title = 'Recorded before sign-in carried a username';
       who.appendChild(none);
     }
     const what = document.createElement('td');
@@ -1809,23 +1818,25 @@ $('#login-form').onsubmit = async (e) => {
   const err = $('#login-error');
   err.hidden = true;
   try {
-    await signIn($('#password').value);
+    await signIn($('#username').value, $('#password').value);
+    /* Cleared on success only. On a failed attempt the username is left
+       in place: the admin has to retype the password anyway, and blanking
+       a correct username because the password was mistyped is a small
+       cruelty with no security value -- the server already knows both. */
+    $('#username').value = '';
     $('#password').value = '';
-    // Asked once, here: sessionStorage dies with the tab, so a token
-    // present on boot means this tab already signed in and was asked.
-    await askActor();
+    renderWhoami();
     // start() failing is not a bad password — it raises its own banner
     // rather than telling the admin their credentials were wrong.
     start().catch((e2) => handleError(e2, 'Loading the panel', () => start().catch(() => {})));
   } catch (ex) {
-    err.textContent = ex.message || 'Invalid password';
+    err.textContent = ex.message || 'Invalid username or password';
     err.hidden = false;
   }
 };
 
 $('#logout').onclick = signOut;
-$('#actor-btn').onclick = () => askActor();
-renderActor();
+renderWhoami();
 
 /* A real tablist: aria-selected carries the state the CSS paints, and a
    roving tabindex means one Tab stop for the strip with arrows inside it. */
@@ -1922,6 +1933,71 @@ $('#bulk-revoke-btn').onclick = async () => {
   if (!r.ok) return;
   runBulk('revoke');
 };
+/* Mass-edit capabilities across the selection.
+
+   Each control is three-state -- Leave unchanged / On / Off -- and only
+   the ones actually moved are sent. That is the whole safety property:
+   without it, turning the theme picker on for forty people would write
+   all four flags to all forty, silently resetting settings the admin
+   never looked at. An empty dialog therefore sends nothing at all rather
+   than sending four falses. */
+const FEATURE_CONTROLS = [
+  ['authorized', '#bf-authorized'],
+  ['rainbow',    '#bf-rainbow'],
+  ['themes',     '#bf-themes'],
+  ['templates',  '#bf-templates']
+];
+
+function readFeatureDialog() {
+  const features = {};
+  for (const [key, sel] of FEATURE_CONTROLS) {
+    const v = $(sel).value;
+    if (v === 'on') features[key] = true;
+    else if (v === 'off') features[key] = false;
+    // '' means leave unchanged, so the key is omitted entirely.
+  }
+  return features;
+}
+
+$('#bulk-features-btn').onclick = () => {
+  const n = selected.size;
+  if (!n) return;
+  // Reset every time it opens. A dialog that remembered the last run's
+  // choices would apply them to a selection nobody checked them against.
+  for (const [, sel] of FEATURE_CONTROLS) $(sel).value = '';
+  $('#features-count').textContent =
+    `Applies to the ${n} selected user${n === 1 ? '' : 's'}. Anything left on “Leave unchanged” is not touched.`;
+  // See openUserDialog: Escape does not reset returnValue.
+  $('#features-dialog').returnValue = '';
+  $('#features-dialog').showModal();
+};
+
+$('#features-dialog').addEventListener('close', async () => {
+  if ($('#features-dialog').returnValue !== 'save') return;
+  const features = readFeatureDialog();
+  const changed = Object.keys(features);
+  if (!changed.length) {
+    // Nothing was chosen. Saying so beats a silent no-op that reads as a
+    // failed request.
+    await messageDialog({
+      title: 'Nothing to change',
+      body: 'Every feature was left on “Leave unchanged”, so no users were touched.'
+    });
+    return;
+  }
+  const n = selected.size;
+  const summary = changed
+    .map((k) => k + ' ' + (features[k] ? 'on' : 'off'))
+    .join(', ');
+  const r = await confirmDialog({
+    title: `Apply to ${n} user${n === 1 ? '' : 's'}?`,
+    body: 'Setting ' + summary + '. Everything else is left as it is.',
+    confirmText: 'Apply'
+  });
+  if (!r.ok) return;
+  runBulk('features', { features });
+});
+
 $('#bulk-restore-btn').onclick = () => runBulk('restore');
 $('#bulk-move-btn').onclick = () => {
   const id = Number($('#bulk-move-group').value);
@@ -2176,6 +2252,13 @@ $('#group-name').addEventListener('keydown', (e) => {
 });
 $('#bulk-btn').onclick = () => {
   $('#f-bulk').value = '';
+  /* Reset to the defaults a single-user add applies, every time. A box
+     left cleared from the last batch would quietly deny the capability to
+     the next one, and the admin has no way to tell the dialog is
+     remembering. */
+  $('#f-bulk-rainbow').checked = false;
+  $('#f-bulk-themes').checked = true;
+  $('#f-bulk-templates').checked = true;
   fillGroupSelect($('#f-bulk-workgroup'), null);
   // See the comment in openUserDialog: Escape does not reset returnValue.
   $('#bulk-dialog').returnValue = '';
@@ -2213,7 +2296,16 @@ $('#bulk-dialog').addEventListener('close', async () => {
     const groupId = Number($('#f-bulk-workgroup').value);
     const groupName = ($('#f-bulk-workgroup').selectedOptions[0] || {}).textContent || '';
     const r = await api('/admin/users/bulk', {
-      method: 'POST', body: JSON.stringify({ usernames, workgroup_id: groupId })
+      method: 'POST',
+      body: JSON.stringify({
+        usernames,
+        workgroup_id: groupId,
+        // Applied only to the names actually created; the server leaves
+        // an existing user's capabilities alone, as the dialog promises.
+        rainbow: $('#f-bulk-rainbow').checked,
+        themes: $('#f-bulk-themes').checked,
+        templates: $('#f-bulk-templates').checked
+      })
     });
     await messageDialog({
       title: 'Bulk add complete',

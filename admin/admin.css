@@ -167,6 +167,15 @@ header{
   margin-left:auto;font:400 11px/1.5 var(--mono);
   color:var(--mut-t);letter-spacing:.04em;
 }
+/* Who is signed in. Sits after the stats bar's margin-left:auto, so the
+   two travel together on the right rather than the name being stranded
+   against the title. Empty when the token carries no name, and an empty
+   <p> with no padding takes no space -- so the header does not gain a
+   gap it cannot fill. */
+#whoami{
+  font:400 11px/1.5 var(--mono);color:var(--mut-t);letter-spacing:.04em;
+}
+#whoami:empty{display:none}
 
 /* ---- banner: a failure says so and stays put ---------------- */
 #banner{
@@ -389,6 +398,7 @@ dialog menu{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;margin:
   body{padding-inline:12px}
   header{gap:11px}
   #stats-bar{margin-left:0;width:100%;order:3}
+  #whoami{order:4}
   /* the Note column used to be display:none here, which silently dropped
      admin-authored data on phones. The wrapper already scrolls, so the
      column stays and the table scrolls to reach it. */
