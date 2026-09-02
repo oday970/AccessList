@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Case Status SLA Color Guard — Loader
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.3.0
 // @description  Loads the Case Status SLA Color Guard.
 // @author       Oday Emar
 // @match        https://scripts.cisco.com/app/quicker_csone/case/*
 // @match        https://scripts.cisco.com/app/quicker_backlog/*
+// @match        https://scripts.cisco.com/app/quicker/*
 // @updateURL    https://casereview.cc/sla.user.js
 // @downloadURL  https://casereview.cc/sla.user.js
 // @grant        GM_setValue
@@ -18,6 +19,14 @@
 
 (function () {
     'use strict';
+
+    /* The first line in the console on every page this loader claims.
+       Until 1.3.0 the loader said nothing until it had a guard to run, so
+       a reviewer on a page the @match list did not cover saw exactly the
+       same console as one whose fetch had failed: nothing at all. Printing
+       the version and the URL makes "the loader never ran here" a fact you
+       can read off the console instead of infer. */
+    console.log('[SLA Loader] v1.3.0 active on ' + location.href);
 
     const API_BASE      = 'https://api.casereview.cc';
     const LOADER_SECRET = 'cra_a1b2c3d4e5f6g7h8';
