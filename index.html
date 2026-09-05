@@ -425,6 +425,65 @@ section{padding:clamp(56px,8vw,108px) 0;border-top:1px solid var(--border)}
 .steps h3{margin-bottom:9px;font-size:1.04rem}
 .steps p{font-size:.9rem;line-height:1.6;color:var(--dim);margin:0}
 
+/* ---- FAQ ---------------------------------------------------- */
+/* Questions stack closed; clicking one drops its answer. Built on native
+   <details>/<summary> rather than JS: it is keyboard-operable and
+   screen-reader-announced for free, it survives the page's scripts
+   failing, and current browsers expand a closed <details> when
+   find-in-page matches text inside it, so ctrl-F still reaches an answer
+   nobody has opened. */
+.faq{list-style:none;margin:0;padding:0;max-width:78ch;display:grid;gap:10px}
+.faq > li{
+  background:var(--surf);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+}
+.faq summary{
+  list-style:none;
+  cursor:pointer;
+  display:flex;align-items:center;gap:16px;
+  padding:15px 18px;
+  font:600 1.01rem/1.45 var(--sans);
+  color:var(--text);
+  transition:background .18s ease;
+}
+/* Safari and older Chromium draw their own triangle; this is the only
+   way to take it away. */
+.faq summary::-webkit-details-marker{display:none}
+.faq summary:hover{background:var(--surf2)}
+.faq summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* The chevron. A rotated corner rather than an icon so it costs no
+   request and inherits the theme's muted ink. */
+.faq summary::after{
+  content:'';
+  margin-left:auto;margin-top:-4px;
+  flex:none;width:9px;height:9px;
+  border-right:2px solid var(--mut-t);
+  border-bottom:2px solid var(--mut-t);
+  transform:rotate(45deg);
+  transition:transform .25s cubic-bezier(.16,1,.3,1);
+}
+.faq details[open] summary::after{transform:rotate(-135deg);margin-top:3px}
+@media (prefers-reduced-motion:reduce){
+  .faq summary,.faq summary::after{transition:none}
+}
+.faq .a{padding:2px 18px 18px}
+.faq .a p{font-size:.9rem;line-height:1.65;color:var(--dim);margin:0}
+.faq .a p + p{margin-top:11px}
+/* The two switches from the permissions answer. Set in mono and boxed so
+   they read as things to find in a UI rather than as prose. */
+.faq .switches{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:7px}
+.faq .switches li{
+  font:600 12px/1.5 var(--mono);
+  color:var(--text);
+  background:var(--surf2);
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:9px 12px;
+}
+.faq code{font:600 12px/1.5 var(--mono);color:var(--text)}
+
 /* ---- SLA --------------------------------------------------- */
 .sla{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(28px,4vw,56px);align-items:center}
 @media (max-width:900px){.sla{grid-template-columns:minmax(0,1fr)}}
@@ -515,6 +574,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
       <a href="#access">Access</a>
       <a href="#install">Install</a>
       <a href="#download">Download</a>
+      <a href="#faq">FAQ</a>
     </nav>
   </div>
 </header>
@@ -984,6 +1044,101 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
         </div>
 
       </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="sec-head rise">
+        <h2>Frequently asked<br><span class="s">questions.</span></h2>
+      </div>
+      <ul class="faq rise">
+
+        <li><details>
+          <summary>Which browsers does this work in?</summary>
+          <div class="a">
+            <p>Anything that runs Tampermonkey: Chrome, Edge, Firefox, Brave, Opera. Both tools are
+            userscripts, so the browser itself is never the thing that has to support them - the
+            userscript manager is. There is no Safari support.</p>
+          </div>
+        </details></li>
+
+        <li><details>
+          <summary>I installed it, and nothing appears.</summary>
+          <div class="a">
+            <p>Nine times out of ten this is a permission the browser withheld rather than anything
+            wrong with the script - and it fails silently, with no error and nothing in the
+            console.</p>
+            <p>Chromium browsers - Chrome, Edge, Brave, Opera - run extensions under Manifest V3,
+            which will not let a userscript manager run scripts until you say so explicitly. The
+            switches are off by default. Open your extensions page, find Tampermonkey, open its
+            details, and set:</p>
+            <ul class="switches">
+              <li>Site access &rarr; On all sites</li>
+              <li>Allow User Scripts &rarr; on</li>
+            </ul>
+            <p>Reload the case page. Firefox has no equivalent gate, so there is nothing to change
+            there.</p>
+          </div>
+        </details></li>
+
+        <li><details>
+          <summary>It still doesn't appear.</summary>
+          <div class="a">
+            <p>Check the console on the case page. Every loader prints one line the moment it runs -
+            <code>[CRA Loader]</code> or <code>[SLA Loader]</code> followed by its version and the
+            URL. If you see that line, the loader ran and the problem is downstream, usually the
+            allow-list. If you see nothing at all, the loader never ran, and it is the question
+            above.</p>
+          </div>
+        </details></li>
+
+        <li><details>
+          <summary>Do I need to be on the allow-list?</summary>
+          <div class="a">
+            <p>For the assistant, yes - message
+            <a href="mailto:odemar@cisco.com">odemar@cisco.com</a> with your username and your
+            workgroup. For the SLA Color Guard, no. It works for anyone who installs it.</p>
+          </div>
+        </details></li>
+
+        <li><details>
+          <summary>Do I have to reinstall when there's an update?</summary>
+          <div class="a">
+            <p>No, and that is the point of the two-part design. What you install is a small loader;
+            the real script lives here and the loader fetches it, checks for a newer one about once
+            an hour, and verifies a cryptographic signature before running a single line. A release
+            reaches you without you doing anything.</p>
+          </div>
+        </details></li>
+
+        <li><details>
+          <summary>How do I tell which version I'm on?</summary>
+          <div class="a">
+            <p>The panel's footer carries the version. The current ones are shown in the
+            <a href="#download">download section</a> above, filled live from the API rather than
+            typed in by hand.</p>
+          </div>
+        </details></li>
+
+        <li><details>
+          <summary>Can I run both at once?</summary>
+          <div class="a">
+            <p>Yes. They are independent, they do not share state, and they do not collide.</p>
+          </div>
+        </details></li>
+
+        <li><details>
+          <summary>Does anything I do get sent anywhere?</summary>
+          <div class="a">
+            <p>Your review counts and your achievements - the leaderboard needs them and nothing
+            else. No case text, no customer data, no notes: none of that is ever sent to
+            casereview.cc.</p>
+          </div>
+        </details></li>
+
+      </ul>
     </div>
   </section>
 
