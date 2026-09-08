@@ -966,7 +966,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
         straight onto the case page. Standalone, no allow-list, install it on its own.</p>
         <p class="lede">Like the assistant, it installs as a small loader that keeps itself current,
         so you install once and never chase a version again. Currently
-        <span class="sla-version">1.13.0</span>, and
+        <span class="sla-version">1.14.0</span>, and
         <a href="#download" style="text-underline-offset:3px">downloadable just below</a>.</p>
       </div>
       <div class="card rise">
@@ -1005,7 +1005,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
 
         <div class="card rise">
           <h3>Case Review Assistant</h3>
-          <span class="dl-ver">Version <span class="cra-version">0.48.0</span> · updates itself</span>
+          <span class="dl-ver">Version <span class="cra-version">0.49.0</span> · updates itself</span>
           <p>Opens inside the case page, scores the case against the five review criteria before
           you have read it, and fills out the review template.</p>
           <p class="dl-gate">
@@ -1025,7 +1025,7 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
 
         <div class="card rise">
           <h3>MTTF / SLA Color Guard</h3>
-          <span class="dl-ver">Version <span class="sla-version">1.13.0</span> · updates itself</span>
+          <span class="dl-ver">Version <span class="sla-version">1.14.0</span> · updates itself</span>
           <p>Colours the case status dropdown by how much SLA time each option actually costs you,
           and draws a mean-time-to-failure histogram beside it.</p>
           <p class="dl-gate">
@@ -1116,9 +1116,13 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
         <li><details>
           <summary>How do I tell which version I'm on?</summary>
           <div class="a">
-            <p>The panel's footer carries the version. The current ones are shown in the
-            <a href="#download">download section</a> above, filled live from the API rather than
-            typed in by hand.</p>
+            <p>The panel carries it: in the header for the Assistant, in the footer for
+            SLA Guard. Click it and the panel shows the release notes for that version and the
+            ones before it, plus a button that checks the API for a newer build. A dot on the
+            version means either that you were updated and have not read the notes yet, or that
+            a newer build is ready and a reload will take it.</p>
+            <p>The current versions are shown in the <a href="#download">download section</a>
+            above, filled live from the API rather than typed in by hand.</p>
           </div>
         </details></li>
 
@@ -1153,9 +1157,9 @@ footer{border-top:1px solid var(--border);padding:clamp(50px,7vw,88px) 0 clamp(4
     <div class="rise">
       <dl>
         <dt>Maintainer</dt><dd>Oday Emar - <a href="mailto:odemar@cisco.com">odemar@cisco.com</a></dd>
-        <dt>Assistant</dt><dd><span class="cra-version">0.48.0</span> - updates itself</dd>
+        <dt>Assistant</dt><dd><span class="cra-version">0.49.0</span> - updates itself</dd>
         <dt>Loader</dt><dd><span class="cra-loader-version">0.30.2</span> - <a href="/loader.user.js">source</a></dd>
-        <dt>SLA Guard</dt><dd><span class="sla-version">1.13.0</span> - <a href="/sla.user.js">loader</a></dd>
+        <dt>SLA Guard</dt><dd><span class="sla-version">1.14.0</span> - <a href="/sla.user.js">loader</a></dd>
         <dt>Runs on</dt><dd>The case page and the review page</dd>
         <dt>Access</dt><dd>Allow-list, by request</dd>
       </dl>
