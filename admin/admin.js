@@ -945,7 +945,9 @@ const tplField = () => $('#tpl-field').value;
 const TPL_FIELD_HINTS = {
   currentStatus: 'Picking one of these REPLACES the Current Status box in the assistant.',
   actionsRequired: 'Picking one of these APPENDS a line to Actions Required, keeping what is already there. ' +
-                   'Include the bullet character you want (e.g. "- " or "* ") — the assistant adds none.'
+                   'Include the bullet character you want (e.g. "- " or "* ") — the assistant adds none.',
+  mrAdditionalFeedback: 'The Manager Review assistant\'s Additional Feedback box. Picking one APPENDS a line. ' +
+                        'Managers save their own under the Managers tab; saving there is gated by that roster, not by Users.'
 };
 
 /* The row being dragged, shared between the handle that started the drag
@@ -1840,6 +1842,190 @@ renderWhoami();
 
 /* A real tablist: aria-selected carries the state the CSS paints, and a
    roving tabindex means one Tab stop for the strip with arrows inside it. */
+/* ---- Managers tab ---------------------------------------------------
+   The Manager Review roster: who may use that assistant, when they last
+   did, and the Additional Feedback wordings each saved. One request
+   returns it all (see listManagers in the Worker), so expanding a row
+   costs nothing. */
+let mgrSearchTimer = null;
+
+async function loadManagers() {
+  const tbody = $('#mgr-table tbody');
+  const q = encodeURIComponent($('#mgr-search').value.trim());
+  let data;
+  try {
+    data = await api('/admin/managers?q=' + q);
+  } catch (err) {
+    clearChildren(tbody);
+    stateRow(tbody, 8, 'Could not load', 'The manager roster is unavailable, not empty.');
+    handleError(err, 'Loading managers', () => loadManagers());
+    return;
+  }
+  clearChildren(tbody);
+  const rows = data.managers || [];
+  if (!rows.length) {
+    stateRow(tbody, 8, q ? 'No matches' : 'No managers', q ? 'Try a shorter search.' : 'Add the first manager above.');
+    return;
+  }
+
+  for (const m of rows) {
+    const tr = document.createElement('tr');
+    if (!m.authorized) tr.className = 'revoked';
+
+    const tdExpand = document.createElement('td');
+    const expand = document.createElement('button');
+    expand.textContent = '▸';
+    expand.setAttribute('aria-label', 'Show templates saved by ' + m.username);
+    expand.setAttribute('aria-expanded', 'false');
+    tdExpand.appendChild(expand);
+
+    const tdName = document.createElement('td');
+    const strong = document.createElement('strong');
+    strong.textContent = m.username;
+    tdName.appendChild(strong);
+
+    const tdAccess = document.createElement('td');
+    tdAccess.appendChild(pill(!!m.authorized, 'Active', 'Revoked'));
+
+    const tdLast = lastSeenCell(m.last_used_at);
+
+    const tdUses = document.createElement('td');
+    tdUses.textContent = String(m.uses || 0);
+
+    const tdTpl = document.createElement('td');
+    tdTpl.textContent = String((m.templates || []).length);
+
+    const tdNote = document.createElement('td');
+    tdNote.textContent = m.note || '';
+
+    const tdActions = document.createElement('td');
+    tdActions.className = 'acts';
+
+    const noteBtn = document.createElement('button');
+    noteBtn.textContent = 'Note';
+    noteBtn.setAttribute('aria-label', 'Edit note for ' + m.username);
+    noteBtn.onclick = async () => {
+      const r = await confirmDialog({
+        title: 'Note for ' + m.username, body: 'Free text: who asked, which team, anything useful later.',
+        confirmText: 'Save', input: { label: 'Note', value: m.note || '', maxLength: 500 }
+      });
+      if (!r.ok) return;
+      try {
+        await api('/admin/managers', { method: 'POST', body: JSON.stringify({ username: m.username, note: String(r.value || '') }) });
+        loadManagers();
+      } catch (err) { handleError(err, 'Saving the note'); }
+    };
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.textContent = m.authorized ? 'Revoke' : 'Restore';
+    toggleBtn.className = m.authorized ? 'danger' : 'primary';
+    toggleBtn.setAttribute('aria-label', (m.authorized ? 'Revoke' : 'Restore') + ' access for ' + m.username);
+    toggleBtn.onclick = async () => {
+      try {
+        if (m.authorized) {
+          const r = await confirmDialog({
+            title: 'Revoke ' + m.username + '?',
+            body: 'The Manager Review panel stops working for them on their next case. Their saved wordings are kept; Restore brings everything back.',
+            confirmText: 'Revoke', danger: true
+          });
+          if (!r.ok) return;
+          await api('/admin/managers/' + encodeURIComponent(m.username), { method: 'DELETE' });
+        } else {
+          await api('/admin/managers/' + encodeURIComponent(m.username) + '/restore', { method: 'POST' });
+        }
+        loadManagers();
+      } catch (err) { handleError(err, (m.authorized ? 'Revoking ' : 'Restoring ') + m.username); }
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.className = 'danger';
+    delBtn.setAttribute('aria-label', 'Delete ' + m.username + ' from the manager roster');
+    delBtn.onclick = async () => {
+      const r = await confirmDialog({
+        title: 'Delete ' + m.username + '?',
+        body: 'Removes them from the roster AND deletes every wording they saved. Revoke is the reversible option.',
+        confirmText: 'Delete', danger: true, typeToConfirm: m.username
+      });
+      if (!r.ok) return;
+      try {
+        await api('/admin/managers/' + encodeURIComponent(m.username) + '?mode=delete', { method: 'DELETE' });
+        loadManagers();
+      } catch (err) { handleError(err, 'Deleting ' + m.username); }
+    };
+
+    tdActions.append(noteBtn, toggleBtn, delBtn);
+    tr.append(tdExpand, tdName, tdAccess, tdLast, tdUses, tdTpl, tdNote, tdActions);
+    tbody.appendChild(tr);
+
+    /* The templates row, hidden until expanded. */
+    const trTpl = document.createElement('tr');
+    trTpl.className = 'mgr-tpl-row';
+    trTpl.hidden = true;
+    const tdWrap = document.createElement('td');
+    tdWrap.colSpan = 8;
+    const list = document.createElement('div');
+    list.className = 'mgr-tpl-list';
+    if (!(m.templates || []).length) {
+      const empty = document.createElement('span');
+      empty.className = 'hint';
+      empty.textContent = 'No saved wordings yet. They see the shared defaults only.';
+      list.appendChild(empty);
+    }
+    for (const t of m.templates || []) {
+      const row = document.createElement('div');
+      row.className = 'mgr-tpl';
+      const body = document.createElement('span');
+      body.className = 'mgr-tpl-body';
+      body.textContent = t.body;                          // textContent: a wording is never markup
+      const when = document.createElement('span');
+      when.className = 'hint';
+      when.textContent = t.created_at ? new Date(t.created_at).toLocaleDateString() : '';
+      const x = document.createElement('button');
+      x.className = 'danger';
+      x.textContent = 'Delete';
+      x.setAttribute('aria-label', 'Delete wording: ' + t.body);
+      x.onclick = async () => {
+        const r = await confirmDialog({ title: 'Delete this wording?', body: t.body, confirmText: 'Delete', danger: true });
+        if (!r.ok) return;
+        try {
+          await api('/admin/managers/' + encodeURIComponent(m.username) + '/templates/' + t.id, { method: 'DELETE' });
+          loadManagers();
+        } catch (err) { handleError(err, 'Deleting the wording'); }
+      };
+      row.append(body, when, x);
+      list.appendChild(row);
+    }
+    tdWrap.appendChild(list);
+    trTpl.appendChild(tdWrap);
+    tbody.appendChild(trTpl);
+
+    expand.onclick = () => {
+      const open = trTpl.hidden;
+      trTpl.hidden = !open;
+      expand.textContent = open ? '▾' : '▸';
+      expand.setAttribute('aria-expanded', String(open));
+    };
+  }
+}
+
+$('#mgr-refresh-btn').addEventListener('click', () => loadManagers());
+$('#mgr-search').addEventListener('input', () => {
+  clearTimeout(mgrSearchTimer);
+  mgrSearchTimer = setTimeout(() => loadManagers(), 250);
+});
+$('#mgr-add-btn').addEventListener('click', async () => {
+  const username = $('#mgr-new').value.trim().toLowerCase();
+  const note = $('#mgr-new-note').value.trim();
+  if (!username) { $('#mgr-new').focus(); return; }
+  try {
+    await api('/admin/managers', { method: 'POST', body: JSON.stringify({ username, note, authorized: true }) });
+    $('#mgr-new').value = ''; $('#mgr-new-note').value = '';
+    loadManagers();
+  } catch (err) { handleError(err, 'Adding ' + username); }
+});
+$('#mgr-new').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#mgr-add-btn').click(); });
+
 const tabBtns = Array.from(document.querySelectorAll('#tabs button[data-tab]'));
 
 function selectTab(btn) {
@@ -1852,6 +2038,7 @@ function selectTab(btn) {
   if (btn.dataset.tab === 'overview') loadOverview().catch((err) => handleError(err, 'Loading the overview', () => loadOverview().catch(() => {})));
   if (btn.dataset.tab === 'settings') loadSettings().catch((err) => handleError(err, 'Loading settings'));
   if (btn.dataset.tab === 'groups') loadGroups();
+  if (btn.dataset.tab === 'managers') loadManagers();
   if (btn.dataset.tab === 'board') loadBoard();
   if (btn.dataset.tab === 'content') {
     loadTemplates().catch((err) => handleError(err, 'Loading templates', () => loadTemplates().catch(() => {})));
