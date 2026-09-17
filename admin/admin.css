@@ -493,3 +493,10 @@ th[aria-sort="ascending"] .sort-btn,th[aria-sort="descending"] .sort-btn{color:v
    where the focus is. */
 .grip{cursor:grab}
 .grip:focus-visible{outline:2.5px solid var(--accent2);outline-offset:2px;border-radius:3px}
+
+/* ---- Managers tab ---- */
+.mgr-tpl-row > td{background:rgba(255,255,255,.02);padding:8px 14px 10px 44px}
+.mgr-tpl-list{display:flex;flex-direction:column;gap:6px}
+.mgr-tpl{display:flex;align-items:center;gap:12px}
+.mgr-tpl-body{flex:1 1 auto;white-space:pre-wrap}
+.mgr-tpl .hint{margin:0;flex:0 0 auto}

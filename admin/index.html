@@ -53,6 +53,7 @@
     <button role="tab" id="tab-btn-overview" aria-selected="true" aria-controls="tab-overview" data-tab="overview">Overview</button>
     <button role="tab" id="tab-btn-users"  aria-selected="false" aria-controls="tab-users"  data-tab="users" tabindex="-1">Users</button>
     <button role="tab" id="tab-btn-groups" aria-selected="false" aria-controls="tab-groups" data-tab="groups" tabindex="-1">Groups</button>
+    <button role="tab" id="tab-btn-managers" aria-selected="false" aria-controls="tab-managers" data-tab="managers" tabindex="-1">Managers</button>
     <button role="tab" id="tab-btn-board"  aria-selected="false" aria-controls="tab-board"  data-tab="board"  tabindex="-1">Leaderboard</button>
     <button role="tab" id="tab-btn-content" aria-selected="false" aria-controls="tab-content" data-tab="content" tabindex="-1">Content</button>
     <button role="tab" id="tab-btn-themes" aria-selected="false" aria-controls="tab-themes" data-tab="themes" tabindex="-1">Themes</button>
@@ -154,6 +155,42 @@
     </div>
   </section>
 
+  <section id="tab-managers" class="tab" role="tabpanel" aria-labelledby="tab-btn-managers" tabindex="0" hidden>
+    <h2>Manager Review access</h2>
+    <p class="hint">Who may use the Manager Review assistant. This roster is separate from the Users
+    allow-list: a manager does not need to be a reviewer. <b>Last used</b> is stamped every time a
+    manager opens the panel on a case. Expand a row to see the Additional Feedback wordings that
+    manager has saved for themselves. The shared defaults live under Content, Field templates,
+    "Manager Review - Additional Feedback".</p>
+    <div class="toolbar">
+      <label for="mgr-search" class="sr-only">Search manager</label>
+      <input id="mgr-search" type="search" placeholder="Search username…">
+      <button id="mgr-refresh-btn">Refresh</button>
+      <span class="spacer"></span>
+      <label for="mgr-new" class="sr-only">New manager username</label>
+      <input id="mgr-new" type="text" placeholder="Cisco username" maxlength="40">
+      <label for="mgr-new-note" class="sr-only">Note</label>
+      <input id="mgr-new-note" type="text" placeholder="Note (optional)" maxlength="120">
+      <button id="mgr-add-btn" class="primary">Add manager</button>
+    </div>
+    <div class="table-wrap">
+      <table id="mgr-table">
+        <caption>Managers — access, last use and saved wordings</caption>
+        <thead><tr>
+          <th scope="col"><span class="sr-only">Expand</span></th>
+          <th scope="col">Manager</th>
+          <th scope="col">Access</th>
+          <th scope="col">Last used</th>
+          <th scope="col">Uses</th>
+          <th scope="col">Templates</th>
+          <th scope="col">Note</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <section id="tab-board" class="tab" role="tabpanel" aria-labelledby="tab-btn-board" tabindex="0" hidden>
     <h2>Leaderboard</h2>
     <p class="hint-strong">Live from the database, not the 15-minute snapshot. Editing a standing, moving someone between groups or removing them republishes the reviewers' board straight away. An edited standing is marked; clearing it restores the real count.</p>
@@ -189,6 +226,7 @@
       <select id="tpl-field">
         <option value="currentStatus">Current Status — replaces the box</option>
         <option value="actionsRequired">Actions Required — appends a line</option>
+        <option value="mrAdditionalFeedback">Manager Review — Additional Feedback (appends a line)</option>
       </select>
     </div>
     <p class="hint" id="tpl-field-hint"></p>
