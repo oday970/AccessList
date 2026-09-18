@@ -9,6 +9,14 @@
   Content-Type: application/javascript; charset=utf-8
   Cache-Control: public, max-age=300
 
+/mr.user.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=300
+
+/pmc.user.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=300
+
 # Applies to every page, not just the panel: the landing page is the one
 # an attacker would reach first, and nosniff/Referrer-Policy cost nothing
 # there. HSTS is set site-wide because both casereview.cc and
