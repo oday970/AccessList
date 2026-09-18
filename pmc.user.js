@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PMC Closure Email — Loader
 // @namespace    http://tampermonkey.net/
-// @version      0.1.0
-// @description  Loads the PMC / PMCT closure e-mail script.
+// @version      0.2.0
+// @description  Loads the PMC / PMCT closure e-mail script on Quicker and pastes the drafted e-mail into Outlook web.
 // @author       Oday (odemar@cisco.com)
 // @match        https://scripts.cisco.com/app/quicker_csone/*
 // @match        https://scripts.cisco.com/app/quicker/*
@@ -173,7 +173,245 @@
         });
     }
 
+
+    /* ============================================================
+       OUTLOOK HALF -- lives in the loader, not the payload.
+
+       outlook.office.com ships a Content-Security-Policy without
+       'unsafe-eval', so on that host the new Function() used to run the
+       signed payload is refused and nothing executes: the compose window
+       opened by the deep link but the body was never pasted (0.1.0).
+       Quicker's CSP allows eval, so the payload keeps running there.
+
+       The code below is the payload's Outlook half, copied verbatim from
+       cra-private/pmc.user.js (pendingDrafts .. runOutlook). It reads the
+       draft the payload stashed in GM storage, finds the compose window
+       with that subject, fills Cc and pastes the body. The storage
+       contract with the payload: key 'pmc:draft:<id>', value
+       { to, cc, subject, html, text, ts }, TTL 3 minutes.
+
+       Keep the two copies in step: a change to the Outlook half in the
+       payload must be mirrored here and shipped as a loader update.
+       ============================================================ */
+    function outlookHalf() {
+        const DRAFT_PREFIX   = 'pmc:draft:';
+        const DRAFT_TTL_MS   = 3 * 60 * 1000;
+        const clean = (s) => (s == null ? '' : String(s)).replace(/\s+/g, ' ').trim();
+        const gmGet  = (k, d) => { try { return GM_getValue(k, d); } catch (e) { return d; } };
+        const gmDel  = (k)    => { try { GM_deleteValue(k); } catch (e) {} };
+        const gmList = ()     => { try { return GM_listValues() || []; } catch (e) { return []; } };
+        const log = (msg, lvl) => console[lvl === 'err' ? 'error' : lvl === 'warn' ? 'warn' : 'log']('[PMC] ' + msg);
+
+        function pendingDrafts(now) {
+            now = now || Date.now();
+            const out = [];
+            for (const k of gmList()) {
+                if (!k.startsWith(DRAFT_PREFIX)) continue;
+                const v = gmGet(k, null);
+                if (v && typeof v.ts === 'number' && now - v.ts <= DRAFT_TTL_MS) out.push({ key: k, ...v });
+                else gmDel(k);
+            }
+            return out;
+        }
+        function findCompose(subject) {
+            const want = clean(subject);
+            const subjectEl = [...document.querySelectorAll('input')]
+                .find(i => /subject/i.test((i.getAttribute('aria-label') || '') + ' ' + (i.getAttribute('placeholder') || '')) && clean(i.value) === want);
+            if (!subjectEl) return null;
+            const editor = [...document.querySelectorAll('[contenteditable="true"][role="textbox"]')]
+                .find(e => /message body|body/i.test(e.getAttribute('aria-label') || ''));
+            return editor ? { subjectEl, editor } : null;
+        }
+        /* ---------- Cc ----------------------------------------------------
+           The deeplink's ?cc= is honoured by classic OWA only; new Outlook
+           drops it and opens with To + Subject alone. So the Outlook half fills
+           the Cc well itself. Works on the compose container that owns the
+           matched subject input, never on a different open draft. */
+        function composeRoot(subjectEl) {
+            let el = subjectEl;
+            for (let i = 0; el && i < 12; i++, el = el.parentElement) {
+                if (el.querySelector('[contenteditable="true"][role="textbox"]')) return el;
+            }
+            return document.body;
+        }
+        function isRecipientInput(el, kind) {
+            const lab = clean((el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('placeholder') || ''));
+            return new RegExp('^' + kind + '(?:$|[^A-Za-z])', 'i').test(lab);
+        }
+        function findCcInput(root) {
+            return [...root.querySelectorAll('input,[role="combobox"],[contenteditable="true"]')]
+                .find(el => isRecipientInput(el, 'Cc')) || null;
+        }
+        function revealCc(root) {
+            const btn = [...root.querySelectorAll('button,[role="button"]')]
+                .find(b => /^cc$/i.test(clean(b.textContent)) || /^(?:add\s+)?cc(?:\s+recipients?)?$/i.test(clean(b.getAttribute('aria-label') || '')));
+            if (btn) { btn.click(); return true; }
+            return false;
+        }
+        function ccResolved(root, email) {
+            const want = email.toLowerCase();
+            const ccIn = findCcInput(root);
+            if (!ccIn) return false;
+            // The well is the input's nearest ancestor that also holds pills; a
+            // pill carries the address in a title/aria-label or as text.
+            let well = ccIn.parentElement;
+            for (let i = 0; well && i < 5; i++, well = well.parentElement) {
+                const txt = clean((well.innerText || '') + ' ' + [...well.querySelectorAll('[aria-label],[title]')]
+                    .map(e => (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')).join(' ')).toLowerCase();
+                if (txt.includes(want)) return true;
+            }
+            return false;
+        }
+        /* Outlook's recipient picker shows a suggestion list (a portal outside
+           the compose form) once text is typed; a synthetic Enter is ignored by
+           React, so the row is clicked instead -- the one whose text carries the
+           address, or the only row if there is just one. */
+        async function pickSuggestion(email) {
+            const want = email.toLowerCase();
+            for (let i = 0; i < 16; i++) {
+                await new Promise(r => setTimeout(r, 200));
+                const opts = [...document.querySelectorAll('[role="listbox"] [role="option"], [role="option"]')]
+                    .filter(o => o.offsetParent !== null);
+                const hit = opts.find(o => clean(o.innerText || o.textContent).toLowerCase().includes(want)) || (opts.length === 1 ? opts[0] : null);
+                if (hit) { hit.click(); return true; }
+            }
+            return false;
+        }
+        /* The compose form appears BEFORE the deeplink has finished resolving
+           its recipients: subject is painted first, To/Cc pills a beat later.
+           Typing at that moment produces a second Cc pill once the deeplink's
+           own one lands. So: wait for the deeplink to settle (To pill present,
+           then a short grace period) and only type if Cc is still missing. */
+        function toResolved(root) {
+            const toIn = [...root.querySelectorAll('input,[role="combobox"],[contenteditable="true"]')].find(el => isRecipientInput(el, 'To'));
+            if (!toIn) return false;
+            let well = toIn.parentElement;
+            for (let i = 0; well && i < 5; i++, well = well.parentElement) {
+                if (well.querySelector('[role="listitem"],[class*="pill" i],[class*="persona" i],[class*="recipient" i] button,[aria-label*="Remove" i]')) return true;
+            }
+            return false;
+        }
+        async function ensureCc(subjectEl, email) {
+            if (!email) return 'none';
+            const root = composeRoot(subjectEl);
+            // Give the deeplink up to 4 s to paint its recipients before judging.
+            for (let i = 0; i < 16; i++) {
+                if (ccResolved(root, email)) return 'present';     // deeplink resolved it (mailtouri path)
+                if (toResolved(root) && i >= 6) break;             // To is in and Cc still absent after 1.5 s -> ours to add
+                await new Promise(r => setTimeout(r, 250));
+            }
+            if (ccResolved(root, email)) return 'present';
+            let ccIn = findCcInput(root);
+            if (!ccIn) {
+                if (!revealCc(root)) return null;
+                for (let i = 0; i < 10 && !(ccIn = findCcInput(root)); i++) await new Promise(r => setTimeout(r, 150));
+                if (!ccIn) return null;
+            }
+            ccIn.focus();
+            let typed = false;
+            try { typed = document.execCommand('insertText', false, email); } catch (e) {}
+            if (!typed) {
+                try {
+                    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+                    if (ccIn instanceof HTMLInputElement && setter) setter.set.call(ccIn, email); else ccIn.textContent = email;
+                    ccIn.dispatchEvent(new Event('input', { bubbles: true }));
+                } catch (e) {}
+            }
+            // First choice: click the suggestion row Outlook offers for the typed
+            // address (this is the click you used to make by hand). Then Enter / ';'.
+            if (await pickSuggestion(email)) {
+                for (let i = 0; i < 8; i++) {
+                    await new Promise(r => setTimeout(r, 250));
+                    if (ccResolved(root, email)) return 'filled';
+                }
+            }
+            for (const type of ['keydown', 'keypress', 'keyup']) {
+                ccIn.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+            }
+            for (let i = 0; i < 12; i++) {
+                await new Promise(r => setTimeout(r, 250));
+                if (ccResolved(root, email)) return 'filled';
+            }
+            try { document.execCommand('insertText', false, ';'); } catch (e) {}
+            await new Promise(r => setTimeout(r, 500));
+            return ccResolved(root, email) ? 'filled' : null;
+        }
+        function caretToStart(editor) {
+            try {
+                editor.focus();
+                const sel = window.getSelection(); const range = document.createRange();
+                range.setStart(editor, 0); range.collapse(true);
+                sel.removeAllRanges(); sel.addRange(range);
+            } catch (e) {}
+        }
+        /* Preference order: a synthetic paste (what the editor would do for a
+           real Ctrl+V), then execCommand('insertHTML'), then give up and let
+           runOutlook point at the clipboard. "Worked" means the editor's HTML
+           changed; the dispatch itself proves nothing. */
+        function insertHtml(editor, html, text) {
+            const before = editor.innerHTML;
+            caretToStart(editor);
+            let pasted = false;
+            try {
+                if (typeof DataTransfer === 'function' && typeof ClipboardEvent === 'function') {
+                    const dt = new DataTransfer(); dt.setData('text/html', html); dt.setData('text/plain', text);
+                    editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+                    pasted = true;
+                }
+            } catch (e) {}
+            return new Promise((resolve) => setTimeout(() => {
+                if (pasted && editor.innerHTML !== before) return resolve('paste');
+                let ok = false;
+                try { caretToStart(editor); ok = document.execCommand('insertHTML', false, html); } catch (e) {}
+                if (ok && editor.innerHTML !== before) return resolve('execCommand');
+                resolve(null);
+            }, 300));
+        }
+        function showToast(msg, ms) {
+            let t = document.getElementById('pmc-toast');
+            if (!t) {
+                t = document.createElement('div'); t.id = 'pmc-toast';
+                // Outlook pages never get injectStyles(); inline the look there.
+                if (!document.getElementById('pmc-styles')) t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483001;background:#0f172a;color:#fff;padding:10px 16px;border-radius:8px;font:13px system-ui;box-shadow:0 6px 24px rgba(0,0,0,.4);border:1px solid #334155;max-width:min(520px,90vw);line-height:1.4';
+                document.body.appendChild(t);
+            }
+            t.textContent = msg;
+            clearTimeout(t._pmcTimer);
+            t._pmcTimer = setTimeout(() => { if (t.parentNode) t.remove(); }, ms || 12000);
+        }
+        function runOutlook(opts) {
+            const intervalMs = (opts && opts.intervalMs) || 250;
+            const maxMs = (opts && opts.maxMs) || 60000;
+            const drafts = pendingDrafts();
+            if (!drafts.length) return;
+            const started = Date.now();
+            let busy = false;
+            const iv = setInterval(async () => {
+                if (busy) return;
+                if (Date.now() - started > maxMs) { clearInterval(iv); return; }
+                for (const d of drafts) {
+                    const hit = findCompose(d.subject);
+                    if (!hit) continue;
+                    busy = true; clearInterval(iv);
+                    const ccHow = await ensureCc(hit.subjectEl, d.cc);
+                    const how = await insertHtml(hit.editor, d.html, d.text);
+                    gmDel(d.key);
+                    const ccNote = ccHow ? '' : ` Cc was NOT added — add ${d.cc} by hand.`;
+                    if (ccHow) log(`Cc ${ccHow}: ${d.cc}`, 'ok'); else log(`Cc not set: ${d.cc}`, 'err');
+                    if (how) { log(`Body inserted via ${how}.`, 'ok'); showToast('PMC draft ready — review and send.' + ccNote); }
+                    else showToast('Body is on your clipboard — click into the message and press Ctrl+V.' + ccNote);
+                    return;
+                }
+            }, intervalMs);
+        }
+
+        runOutlook();
+    }
+
+    const IS_OUTLOOK = /^outlook\.(office|office365)\.com$|^outlook\.cloud\.microsoft$/.test(location.host);
+
     async function main() {
+        if (IS_OUTLOOK) { outlookHalf(); return; }
         if (typeof GM_xmlhttpRequest !== 'function') {
             console.error('[PMC Loader] GM_xmlhttpRequest unavailable.');
             return;
