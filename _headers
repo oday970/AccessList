@@ -17,6 +17,14 @@
   Content-Type: application/javascript; charset=utf-8
   Cache-Control: public, max-age=300
 
+# Immutable: the filename is tied to Chivo v21's content hash upstream,
+# so a new cut of the font arrives as a new file rather than as a change
+# to this one. Pages infers font/woff2 from the extension; stating it
+# removes the doubt.
+/fonts/*
+  Content-Type: font/woff2
+  Cache-Control: public, max-age=31536000, immutable
+
 # Applies to every page, not just the panel: the landing page is the one
 # an attacker would reach first, and nosniff/Referrer-Policy cost nothing
 # there. HSTS is set site-wide because both casereview.cc and

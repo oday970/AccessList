@@ -1,3 +1,28 @@
+/* Self-hosted so the page's CSP names no external origin, and so no
+   visitor's browser announces the visit to a third party.
+
+   ONE file, not three. Chivo v21 is a variable font (fvar/HVAR/STAT),
+   so the single latin woff2 covers the whole 600-800 range that
+   --display asks for -- Google's own stylesheet points all three weight
+   blocks at this same URL.
+
+   Latin subset only, and that is not a reduction: the rendered page
+   holds four non-ASCII characters, and the three that Chivo can draw
+   are all in this subset. The fourth is the arrow U+2192, which sits in
+   NO Chivo subset and already falls back to a system font on the live
+   site. So this is byte-for-byte what a browser fetches today.
+
+   swap preserves the display:swap behaviour the Google link carried:
+   text paints in the fallback first rather than staying invisible. */
+@font-face{
+  font-family:'Chivo';
+  font-style:normal;
+  font-weight:600 800;
+  font-display:swap;
+  src:url('/fonts/chivo-latin.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
 /* ==========================================================
    MIDNIGHT - the panel's own theme, at page scale.
 
