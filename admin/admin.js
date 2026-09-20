@@ -1,11 +1,40 @@
 'use strict';
 
-const API = 'https://api.casereview.cc';
-const TOKEN_KEY = 'craAdminToken';
+/* Everything below is wrapped so that NONE of it reaches the global
+   lexical environment. admin.js is a classic script (admin/index.html:561,
+   no type="module"), and in a classic script a top-level `let` or `const`
+   is a global lexical binding -- reachable by bare name from the devtools
+   console and from any other script in this realm. Without this wrapper the
+   session token would still be addressable as `sessionToken`, which is
+   exactly the property moving it out of sessionStorage was meant to remove.
 
-// sessionStorage, not localStorage: the token dies with the tab, so a
-// shared machine does not leave an admin session behind.
-const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+   Safe here because the panel exposes nothing outward: admin/index.html
+   carries no inline on* handlers (every handler is assigned as a property
+   from this file), nothing is assigned to window, and this is the only
+   script on the page. Check those three before removing the wrapper. */
+(() => {
+
+const API = 'https://api.casereview.cc';
+/* The session token lives in module scope and nowhere else.
+
+   It used to sit in sessionStorage, which finding 6 of SECURITY-REVIEW.md
+   called out. The path that actually mattered was a browser extension: a
+   content script runs in an isolated world and CANNOT reach a
+   module-scoped binding, but sessionStorage is DOM-level state it can read
+   by name, quietly, at any point while the tab sits open. Injected script
+   and compromised dependencies were already covered by the /admin/* CSP,
+   which loads no external code.
+
+   This is defence in depth, not a wall: anything that does manage to run
+   script in this page can call api() directly and act as admin. What it
+   removes is addressability and persistence -- there is no name to ask
+   for, and nothing survives the document.
+
+   The cost is real and intended: reloading /admin signs you out, because
+   there is no longer anywhere for the token to have been. */
+let sessionToken = '';
+const getToken = () => sessionToken;
+const setToken = (t) => { sessionToken = String(t || ''); };
 
 /* The admin account this tab is signed in as, read out of the session
    token's payload.
@@ -61,12 +90,52 @@ async function api(path, options = {}) {
   return resp.json();
 }
 
+/* An admin tab left open on an unlocked machine is the other half of the
+   same problem the module-scoped token addresses. Thirty minutes without
+   interaction ends the session in the panel.
+
+   This does NOT extend or shorten the token's own expiry, which the server
+   still governs, and it is not a revocation: signing out clears the client
+   only. The token stays valid until it expires on its own.
+
+   Declared ABOVE signOut deliberately: signOut clears this timer, and a
+   `let` read before its declaration is a ReferenceError, not undefined. */
+const IDLE_MS = 30 * 60 * 1000;
+let idleTimer = null;
+let lastIdleReset = 0;
+
 function signOut() {
-  sessionStorage.removeItem(TOKEN_KEY);
+  setToken('');
+  clearTimeout(idleTimer);
+  idleTimer = null;
+  lastIdleReset = 0;
   renderWhoami();
   $('#app-view').hidden = true;
   $('#login-view').hidden = false;
 }
+
+/* Throttled: pointermove fires continuously, and rearming a timer on every
+   pixel of travel is pure churn. Resetting at most once every 30s is far
+   finer than the 30-minute window needs. */
+const IDLE_THROTTLE_MS = 30 * 1000;
+
+function resetIdle() {
+  if (!getToken()) return;            // not signed in: nothing to time out
+  const now = Date.now();
+  if (now - lastIdleReset < IDLE_THROTTLE_MS && idleTimer) return;
+  lastIdleReset = now;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (!getToken()) return;
+    signOut();
+    showBanner('Signed out after 30 minutes of inactivity.');
+  }, IDLE_MS);
+}
+
+['click', 'keydown', 'pointermove', 'focus'].forEach((evt) => {
+  window.addEventListener(evt, resetIdle, { passive: true });
+});
+
 
 /* A failed request is not the same thing as an expired session. Only a 401
    signs the admin out; everything else raises this banner and leaves the
@@ -241,7 +310,8 @@ async function signIn(username, password) {
     throw new Error('Invalid username or password');
   }
   const { token } = await resp.json();
-  sessionStorage.setItem(TOKEN_KEY, token);
+  setToken(token);
+  resetIdle();                        // start the clock with the session
 }
 
 /* ---- users ---- */
@@ -2636,3 +2706,5 @@ async function start() {
 if (getToken()) {
   start().catch((err) => handleError(err, 'Loading the panel', () => start().catch(() => {})));
 }
+
+})();
