@@ -128,7 +128,11 @@ function resetIdle() {
   idleTimer = setTimeout(() => {
     if (!getToken()) return;
     signOut();
-    showBanner('Signed out after 30 minutes of inactivity.');
+    // Derived from IDLE_MS rather than written out, so tuning the window
+    // cannot leave the message claiming a number that is no longer true.
+    const mins = Math.round(IDLE_MS / 60000);
+    showBanner('Signed out after ' + (mins >= 1 ? mins + ' minute' + (mins === 1 ? '' : 's')
+                                               : Math.round(IDLE_MS / 1000) + ' seconds') + ' of inactivity.');
   }, IDLE_MS);
 }
 
