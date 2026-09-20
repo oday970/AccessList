@@ -34,6 +34,19 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
+  # Framing is denied everywhere now, not just on the panel.
+  # X-Frame-Options is the legacy half; frame-ancestors inside each CSP
+  # is the half modern browsers read. Both, because the two are not read
+  # by the same set of browsers.
+  X-Frame-Options: DENY
+  # Nothing on this site uses any of these. Denying them costs nothing
+  # and means a future injected script cannot reach for them either.
+  #
+  # Cross-Origin-Resource-Policy is deliberately NOT here. All four
+  # loaders -- loader/sla/mr/pmc.user.js -- are fetched cross-origin by
+  # Tampermonkey on every update check, and a blanket CORP breaks every
+  # client silently.
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
 # The landing page. Everything it needs is same-origin now that
 # index.css, index.js and the font were split out -- the ONE exception
@@ -73,7 +86,6 @@
 
 /admin/*
   X-Robots-Tag: noindex
-  X-Frame-Options: DENY
   # The panel holds an admin bearer token in sessionStorage, and nothing
   # else constrained what could read it. admin/index.html carries no
   # inline <style>, <script> or on* attribute — every handler is assigned
