@@ -1807,6 +1807,70 @@ async function exportUsers() {
   }
 }
 
+/* ---- maintenance mode -----------------------------------------
+   The header button and the banner are two views of one state, fetched
+   from /admin/maintenance and re-read after every flip. Turning it ON
+   asks for a reason (shown to every reviewer on their panel) and is a
+   danger-styled confirm; turning it OFF is one click, because the
+   reversible direction should be the easy one. */
+let maintState = { on: false, message: '', allow: ['odemar'], since: null, by: null };
+
+function renderMaintenance() {
+  const btn = $('#maint-btn');
+  const banner = $('#maint-banner');
+  if (!btn || !banner) return;
+  btn.setAttribute('aria-pressed', maintState.on ? 'true' : 'false');
+  btn.textContent = maintState.on ? '🛠 Maintenance: ON' : '🛠 Maintenance: off';
+  btn.title = maintState.on
+    ? 'Maintenance is ON — every reviewer except ' + maintState.allow.join(', ') + ' sees the maintenance panel. Click to turn it off.'
+    : 'Turn maintenance mode on: every reviewer except the allow list gets an "Under Maintenance" panel instead of the tool.';
+  banner.hidden = !maintState.on;
+  if (maintState.on) {
+    const p = $('#maint-text');
+    clearChildren(p);
+    const b = document.createElement('b');
+    b.textContent = 'Maintenance mode is ON. ';
+    p.appendChild(b);
+    const since = maintState.since ? new Date(maintState.since) : null;
+    p.appendChild(document.createTextNode(
+      'Reviewers see the maintenance panel instead of the tool' +
+      (since ? ' since ' + since.toLocaleString() : '') +
+      (maintState.by ? ' (turned on by ' + maintState.by + ')' : '') +
+      '. Still working: ' + maintState.allow.join(', ') +
+      (maintState.message ? '. Reason shown to them: "' + maintState.message + '"' : '.')
+    ));
+  }
+}
+
+async function loadMaintenance() {
+  maintState = await api('/admin/maintenance');
+  renderMaintenance();
+}
+
+async function setMaintenance(on, message) {
+  const body = { on };
+  if (message !== undefined) body.message = message;
+  maintState = await api('/admin/maintenance', { method: 'POST', body: JSON.stringify(body) });
+  renderMaintenance();
+  loadStats().catch(() => {});
+}
+
+async function toggleMaintenance() {
+  if (maintState.on) {
+    await setMaintenance(false);
+    return;
+  }
+  const r = await confirmDialog({
+    title: 'Turn maintenance mode on?',
+    body: 'Every reviewer except ' + maintState.allow.join(', ') + ' will see an "Under Maintenance" panel with a Webex contact button instead of the tool, from their next click on the launcher until you turn it off again.',
+    confirmText: 'Turn maintenance on',
+    danger: true,
+    input: { label: 'Reason shown to reviewers (optional)', value: maintState.message || '', maxLength: 300 }
+  });
+  if (!r.ok) return;
+  await setMaintenance(true, (r.value || '').trim());
+}
+
 async function loadStats() {
   const s = await fetchStats();
   const age = s.snapshotAgeMs === null ? 'never built' : Math.round(s.snapshotAgeMs / 60000) + ' min ago';
@@ -1838,6 +1902,20 @@ $('#login-form').onsubmit = async (e) => {
 };
 
 $('#logout').onclick = signOut;
+$('#maint-btn').onclick = () => {
+  const btn = $('#maint-btn');
+  btn.disabled = true;
+  toggleMaintenance()
+    .catch((err) => handleError(err, 'Changing maintenance mode'))
+    .finally(() => { btn.disabled = false; });
+};
+$('#maint-off').onclick = () => {
+  const btn = $('#maint-off');
+  btn.disabled = true;
+  setMaintenance(false)
+    .catch((err) => handleError(err, 'Turning maintenance off'))
+    .finally(() => { btn.disabled = false; });
+};
 renderWhoami();
 
 /* A real tablist: aria-selected carries the state the CSS paints, and a
@@ -2547,6 +2625,7 @@ async function start() {
   await Promise.all([
     loadUsers(),
     loadStats(),
+    loadMaintenance().catch((err) => handleError(err, 'Reading maintenance mode', () => loadMaintenance().catch(() => {}))),
     loadOverview().catch((err) => handleError(err, 'Loading the overview'))
   ]);
 }

@@ -38,8 +38,19 @@
          not a claim: login takes a username, and the action log records
          the same name from the same token. -->
     <p id="whoami"></p>
+    <!-- The emergency brake. One button, visible from every tab, that
+         withholds the review tool from everyone but the allow list until
+         it is pressed again. State comes from /admin/maintenance. -->
+    <button id="maint-btn" type="button" aria-pressed="false" title="Maintenance mode">🛠 Maintenance: off</button>
     <button id="logout">Sign out</button>
   </header>
+
+  <!-- Shown while maintenance is on, on every tab, so it cannot be
+       forgotten about once the fix has shipped. -->
+  <div id="maint-banner" role="status" hidden>
+    <p id="maint-text"></p>
+    <button id="maint-off" type="button" class="primary">Turn maintenance off</button>
+  </div>
 
   <!-- a transient failure says so and stays put, instead of silently
        dropping the admin back to the login form -->
