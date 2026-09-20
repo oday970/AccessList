@@ -35,6 +35,42 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
 
+# The landing page. Everything it needs is same-origin now that
+# index.css, index.js and the font were split out -- the ONE exception
+# is the bootstrap at index.html:13, kept inline because a deferred file
+# that failed to load would take every progressively-revealed section of
+# the page with it. Its content is frozen, so the hash below carries no
+# ongoing maintenance. If that line is ever edited the hash must be
+# recomputed, or the page loses its "js" class and every hidden section
+# stays hidden -- silently, with no console error worth noticing.
+#
+# style-src is split ON PURPOSE. index.html carries 61 inline style=""
+# attributes -- meter fills, stagger indices, bar widths -- and a plain
+# style-src 'self' drops every one of them, leaving empty meters and no
+# visible error. style-src-elem is the half that matters: it governs
+# <style> elements and stylesheet loads. A style ATTRIBUTE cannot
+# execute script, so allowing those is cheap. The bare style-src stays
+# as the fallback for browsers without the -elem/-attr split.
+#
+# connect-src names the API because index.js fetches /version and
+# /sla/version to fill the version spans live. If the API hostname ever
+# changes, this line changes with it or those spans silently fall back
+# to their hardcoded values.
+#
+# Verified against the page when written: no <form> (so form-action
+# 'none' is safe), no inline on* handlers (so script-src needs no
+# 'unsafe-inline'), no dynamic script/image creation in index.js, and
+# the only url() in index.css is the self-hosted font. The two <canvas>
+# elements are JS-drawn and fetch nothing.
+#
+# Both paths are listed because Pages matches on the REQUEST path, and
+# the page is reachable as / and as /index.html.
+/
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'sha256-tHd4qJ0R/vQfI0CbRTiL3XGSi+Tun7VhOcDbx08aLKA='; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src https://api.casereview.cc; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+/index.html
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'sha256-tHd4qJ0R/vQfI0CbRTiL3XGSi+Tun7VhOcDbx08aLKA='; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; connect-src https://api.casereview.cc; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
 /admin/*
   X-Robots-Tag: noindex
   X-Frame-Options: DENY
