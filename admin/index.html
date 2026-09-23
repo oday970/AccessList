@@ -319,16 +319,36 @@
   </section>
 
   <section id="tab-themes" class="tab" role="tabpanel" aria-labelledby="tab-btn-themes" tabindex="0" hidden>
-    <h2>Themes</h2>
-    <p class="hint-strong">The default theme must be one that is enabled, and at least one theme must stay enabled.</p>
-    <div class="toolbar">
-      <button data-bulk="on">Enable all seasonal</button>
-      <button data-bulk="off">Disable all seasonal</button>
+    <div class="th-head">
+      <div>
+        <h2>Themes</h2>
+        <p class="th-lede">What the theme picker offers, in the review panel and the MR panel alike. Turn a theme on or off, choose the default, and choose whether it sits under Standard or Seasonal.</p>
+      </div>
+      <p id="theme-summary" class="th-summary" aria-live="polite"></p>
     </div>
-    <h2>Standard</h2>
-    <div id="theme-standard" class="theme-list"></div>
-    <h2>Seasonal</h2>
-    <div id="theme-seasonal" class="theme-list"></div>
+    <p class="hint-strong">The default theme must be one that is enabled, and at least one theme must stay enabled.</p>
+    <div class="th-tools">
+      <input id="theme-filter" type="search" placeholder="Filter themes" aria-label="Filter themes" autocomplete="off" spellcheck="false">
+      <div class="seg" role="group" aria-label="Show" id="theme-show">
+        <button type="button" data-show="all" aria-pressed="true">All</button>
+        <button type="button" data-show="on" aria-pressed="false">Enabled</button>
+        <button type="button" data-show="off" aria-pressed="false">Disabled</button>
+      </div>
+    </div>
+    <div class="th-group">
+      <div class="th-group-h">
+        <h3>Standard <span id="theme-standard-count" class="th-count"></span></h3>
+        <div class="th-bulk"><button type="button" data-group="standard" data-on="1">Enable all</button><button type="button" data-group="standard" data-on="0">Disable all</button></div>
+      </div>
+      <div id="theme-standard" class="theme-grid"></div>
+    </div>
+    <div class="th-group">
+      <div class="th-group-h">
+        <h3>Seasonal <span id="theme-seasonal-count" class="th-count"></span></h3>
+        <div class="th-bulk"><button type="button" data-group="seasonal" data-on="1">Enable all</button><button type="button" data-group="seasonal" data-on="0">Disable all</button></div>
+      </div>
+      <div id="theme-seasonal" class="theme-grid"></div>
+    </div>
   </section>
 
   <section id="tab-settings" class="tab" role="tabpanel" aria-labelledby="tab-btn-settings" tabindex="0" hidden>

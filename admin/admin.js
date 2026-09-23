@@ -1660,72 +1660,189 @@ async function loadSettings() {
 }
 
 /* ---- themes ---- */
+/* What each theme looks like, so its card can show it: [panel gradient,
+   accent, accent 2, light?], copied from THEMES in cra.user.js. A theme
+   missing here still works; its card is drawn in plain Midnight. */
+const THEME_LOOK = {
+  midnight: ["linear-gradient(160deg,#0a1326 0%,#0d1b3a 45%,#10142e 100%)","#4f8cff","#6aa6ff",0],
+  cyberpunk: ["linear-gradient(180deg,#05020f 0%,#0d0524 42%,#26083f 76%,#3a0a4c 100%)","#f72585","#00e5ff",0],
+  matrix: ["linear-gradient(180deg,#000d00 0%,#021a02 60%,#001000 100%)","#00ff66","#39ff14",0],
+  crimson: ["radial-gradient(120% 120% at 50% 0%,#4a0d0d 0%,#1c0606 55%,#100303 100%)","#ff5a5a","#ff8a3d",0],
+  synthwave: ["linear-gradient(180deg,#2b0a5e 0%,#5e1a8c 35%,#ff5fb0 78%,#ffb86c 100%)","#ff5fb0","#ffb86c",0],
+  dracula: ["linear-gradient(155deg,#282a36 0%,#1e1f29 60%,#191a23 100%)","#bd93f9","#ff79c6",0],
+  plasma: ["radial-gradient(120% 90% at 50% 55%,#1c0b33 0%,#0e0620 55%,#07030f 100%)","#e05cff","#7c6bff",0],
+  inkwater: ["linear-gradient(180deg,#f7fbfc 0%,#eef5f7 60%,#e3eef2 100%)","#1f2a6b","#b0164f",1],
+  papercut: ["linear-gradient(180deg,#fbe3d0 0%,#fdf3e7 100%)","#e0735a","#3f8f86",1],
+  metropolis: ["linear-gradient(180deg,#cfe8f5 0%,#eaf4ee 100%)","#e0786a","#7fb8a6",1],
+  koi: ["radial-gradient(120% 100% at 50% 55%,#16504e 0%,#0a2427 100%)","#ff7a45","#f4d6a0",0],
+  lanterns: ["linear-gradient(180deg,#0a0d24 0%,#1d1a44 70%,#0c0b22 100%)","#ff4d3d","#ffcf5a",0],
+  nord: ["linear-gradient(180deg,#252b37 0%,#2e3440 42%,#3b4252 100%)","#88c0d0","#81a1c1",0],
+  solarized: ["linear-gradient(160deg,#002b36 0%,#073642 60%,#04303a 100%)","#2aa198","#268bd2",0],
+  oceanic: ["linear-gradient(180deg,#041e2e 0%,#0a3a52 55%,#0d5a73 100%)","#22d3ee","#38bdf8",0],
+  ember: ["linear-gradient(180deg,#0b0604 0%,#130905 55%,#1f0c05 100%)","#ff8a3d","#ffb020",0],
+  forest: ["linear-gradient(180deg,#0b1d22 0%,#0f2a2a 45%,#10302a 100%)","#34d399","#a3e635",0],
+  royal: ["radial-gradient(120% 90% at 50% 100%,#3a1a6e 0%,#221045 45%,#12082a 100%)","#ffd24a","#c4a4ff",0],
+  gold: ["radial-gradient(120% 90% at 50% 15%,#241a0b 0%,#130d06 55%,#0a0704 100%)","#e6b94a","#fff0c2",0],
+  aurora: ["linear-gradient(180deg,#020611 0%,#04131f 45%,#062028 78%,#081d22 100%)","#5ef2c9","#b794f6",0],
+  rainstorm: ["linear-gradient(170deg,#101a24 0%,#1d2f3f 45%,#0a1119 100%)","#7cc0e0","#bfe3f2",0],
+  obsidian: ["linear-gradient(170deg,#0b0b0d 0%,#16151a 50%,#050506 100%)","#ff5b2e","#ffb26b",0],
+  blueprint: ["linear-gradient(170deg,#062a4a 0%,#0a3a63 50%,#04203a 100%)","#6fd0ff","#ffffff",0],
+  abyss: ["linear-gradient(180deg,#050b18 0%,#0a1430 55%,#02060f 100%)","#5ed6de","#a98cff",0],
+  apothecary: ["linear-gradient(170deg,#0c1f18 0%,#153228 48%,#07140f 100%)","#c6a056","#7ac896",0],
+  halloween: ["linear-gradient(165deg,#1a0d02 0%,#3a1e05 45%,#0d0602 100%)","#ff7518","#9333ea",0],
+  christmas: ["linear-gradient(165deg,#0b2a1c 0%,#0f3a25 45%,#082014 100%)","#e23b3b","#f2c14e",0],
+  newyear: ["linear-gradient(180deg,#05050f 0%,#1a1640 55%,#2a2350 100%)","#ffd24a","#ff5fb0",0],
+  eid_adha: ["linear-gradient(165deg,#04130d 0%,#0d3a2a 50%,#063322 100%)","#3fd99b","#ffd24a",0],
+  eid_fitr: ["linear-gradient(180deg,#070a26 0%,#1a2a6b 55%,#0d1440 100%)","#8fc0ff","#ffd24a",0],
+  ramadan: ["linear-gradient(170deg,#0a0726 0%,#2a1f55 50%,#140d3a 100%)","#e6c14a","#c4a4ff",0],
+  valentine: ["linear-gradient(165deg,#2a0814 0%,#5a1030 45%,#380a1c 100%)","#ff4d8d","#ff8ab0",0],
+  sakura: ["linear-gradient(170deg,#fff2f7 0%,#ffdfec 45%,#f8c2d8 100%)","#c9346a","#ff7eb6",1],
+  spring: ["linear-gradient(170deg,#eaf7d2 0%,#c6e79a 45%,#8fc45c 100%)","#3f7d12","#76b82a",1],
+  summer: ["linear-gradient(170deg,#ffeaad 0%,#ffd07a 32%,#8ed8e4 78%,#43a8c6 100%)","#c25f00","#0e7490",1],
+  autumn: ["linear-gradient(170deg,#3a1e08 0%,#6b3a12 45%,#2a1606 100%)","#e07b39","#f0a93a",0],
+  winter: ["linear-gradient(170deg,#16324a 0%,#0d2135 55%,#071522 100%)","#9adcff","#e2f4ff",0],
+  lorenz: ["radial-gradient(120% 90% at 50% 38%,#17112f 0%,#0b0918 55%,#060510 100%)","#a78bfa","#5eead4",0],
+  murmuration: ["linear-gradient(180deg,#1d2250 0%,#3b3470 36%,#6f4a78 66%,#a45f66 100%)","#ffb38a","#ffd6a5",0],
+  firefly_sync: ["linear-gradient(180deg,#06110d 0%,#0a1d16 55%,#0f2c1d 100%)","#d9f99d","#fde68a",0],
+  goldenangle: ["radial-gradient(130% 100% at 82% 88%,#f6e4b8 0%,#fbf3e0 45%,#fdf9f1 100%)","#b45309","#a16207",1],
+  horizon: ["radial-gradient(90% 70% at 50% 75%,#1c1007 0%,#0a0604 45%,#030203 100%)","#ffb347","#fff1d6",0],
+  silk: ["linear-gradient(155deg,#0e0b1c 0%,#121027 50%,#0a0a16 100%)","#f0abfc","#67e8f9",0],
+};
+
+const themeView = { filter: '', show: 'all' };
+let themeData = null;
+
 async function loadThemes() {
-  const data = await api('/admin/themes');
-
-  const render = (target, list) => {
-    const el = $(target);
-    clearChildren(el);
-    for (const t of list) {
-      const row = document.createElement('div');
-      row.className = 'theme-row';
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = !!t.enabled;
-
-      const label = document.createElement('span');
-      label.className = 'nm';
-      label.textContent = (t.emoji || '') + ' ' + t.label;
-
-      const spacer = document.createElement('span');
-      spacer.className = 'spacer';
-
-      const radioLabel = document.createElement('label');
-      const radio = document.createElement('input');
-      radio.type = 'radio';
-      radio.name = 'default-theme';
-      radio.checked = data.defaultTheme === t.id;
-      radioLabel.appendChild(radio);
-      radioLabel.appendChild(document.createTextNode(' default'));
-
-      checkbox.onchange = async (e) => {
-        const desired = e.target.checked;
-        try {
-          await api('/admin/themes', { method: 'POST', body: JSON.stringify({ id: t.id, enabled: desired }) });
-          loadThemes();
-        } catch (err) {
-          // The server refuses to disable the last enabled theme (409).
-          // Revert the checkbox instead of leaving it in a state the
-          // server rejected, and say why.
-          e.target.checked = !desired;
-          handleError(err, 'Updating ' + t.label);
-        }
-      };
-      radio.onchange = async () => {
-        try {
-          await api('/admin/themes', { method: 'POST', body: JSON.stringify({ defaultTheme: t.id }) });
-        } catch (err) {
-          // The API refuses a disabled theme as default (400) and also
-          // returns 404 if the theme was deleted/renamed concurrently by
-          // another admin — prefer the server's own message over the
-          // hardcoded guess, falling back only when it has none.
-          handleError(err, 'Setting ' + t.label + ' as default');
-        }
-        loadThemes();
-      };
-
-      row.appendChild(checkbox);
-      row.appendChild(label);
-      row.appendChild(spacer);
-      row.appendChild(radioLabel);
-      el.appendChild(row);
-    }
-  };
-
-  render('#theme-standard', data.themes.filter((t) => !t.seasonal));
-  render('#theme-seasonal', data.themes.filter((t) => t.seasonal));
+  themeData = await api('/admin/themes');
+  renderThemes();
 }
+
+/* Every change is applied to the local copy first so the card moves at
+   once, then the catalog is re-read: on success that changes nothing, on
+   a refusal (409 last enabled theme, 400 disabled default) it puts back
+   the truth, and handleError says why. */
+async function themePost(body, what) {
+  try { await api('/admin/themes', { method: 'POST', body: JSON.stringify(body) }); }
+  catch (err) { handleError(err, what); }
+  await loadThemes().catch(() => {});
+}
+
+function renderThemes() {
+  const data = themeData;
+  if (!data) return;
+  const all = data.themes || [];
+  const q = themeView.filter.trim().toLowerCase();
+  const visible = (t) => (!q || t.label.toLowerCase().includes(q) || t.id.includes(q)) &&
+    (themeView.show === 'all' || (themeView.show === 'on' ? !!t.enabled : !t.enabled));
+  const def = all.find((t) => t.id === data.defaultTheme);
+  $('#theme-summary').textContent =
+    all.filter((t) => t.enabled).length + ' of ' + all.length + ' enabled · ' +
+    all.filter((t) => t.seasonal).length + ' seasonal · default ' + (def ? def.label : 'none');
+  for (const [sel, seasonal] of [['#theme-standard', false], ['#theme-seasonal', true]]) {
+    const group = all.filter((t) => !!t.seasonal === seasonal);
+    $(sel + '-count').textContent = group.filter((t) => t.enabled).length + '/' + group.length + ' on';
+    const el = $(sel);
+    clearChildren(el);
+    const shown = group.filter(visible);
+    if (!shown.length) {
+      const e = document.createElement('p');
+      e.className = 'theme-empty';
+      e.textContent = group.length ? 'No themes here match the filter.'
+        : (seasonal ? 'No seasonal themes. Use a theme\'s Seasonal switch to move it here.' : 'No standard themes.');
+      el.appendChild(e);
+      continue;
+    }
+    for (const t of shown) el.appendChild(themeCard(t, data.defaultTheme === t.id));
+  }
+}
+
+function setDefaultTheme(t) {
+  if (themeData) themeData.defaultTheme = t.id;
+  renderThemes();
+  themePost({ defaultTheme: t.id }, 'Setting ' + t.label + ' as default');
+}
+
+function themeCard(t, isDefault) {
+  const look = THEME_LOOK[t.id] || ['linear-gradient(160deg,#1b2a4d 0%,#10182f 100%)', '#4f8cff', '#6aa6ff', 0];
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const card = el('article', 'theme-card' + (t.enabled ? '' : ' off') + (isDefault ? ' is-default' : ''));
+
+  const pv = el('div', 'tc-preview');
+  pv.style.background = look[0];
+  pv.appendChild(el('span', 'tc-emoji', t.emoji || '🎨'));
+  const dots = el('span', 'tc-dots');
+  for (const c of [look[1], look[2]]) { const d = el('i'); d.style.background = c; dots.appendChild(d); }
+  pv.appendChild(dots);
+  if (look[3]) pv.appendChild(el('span', 'tc-mode', 'Light'));
+  if (isDefault) pv.appendChild(el('span', 'tc-badge', 'Default'));
+  card.appendChild(pv);
+
+  const body = el('div', 'tc-body');
+  body.appendChild(el('div', 'tc-name', t.label));
+  body.appendChild(el('code', 'tc-id', t.id));
+
+  const row = el('div', 'tc-row');
+  const sw = el('label', 'switch');
+  const cb = el('input');
+  cb.type = 'checkbox';
+  cb.checked = !!t.enabled;
+  cb.setAttribute('aria-label', 'Enable ' + t.label);
+  const knob = el('span');
+  knob.setAttribute('aria-hidden', 'true');
+  sw.appendChild(cb);
+  sw.appendChild(knob);
+  cb.onchange = () => {
+    const want = cb.checked;
+    t.enabled = want ? 1 : 0;
+    renderThemes();
+    themePost({ id: t.id, enabled: want }, (want ? 'Enabling ' : 'Disabling ') + t.label);
+  };
+  const star = el('button', 'tc-star', isDefault ? '★ Default' : 'Make default');
+  star.type = 'button';
+  star.disabled = isDefault || !t.enabled;
+  star.title = isDefault ? 'This is the default theme'
+    : t.enabled ? 'Make ' + t.label + ' the default' : 'Enable it first: the default has to be an enabled theme';
+  star.onclick = () => setDefaultTheme(t);
+  row.appendChild(sw);
+  row.appendChild(el('span', 'tc-state', t.enabled ? 'On' : 'Off'));
+  row.appendChild(star);
+  body.appendChild(row);
+
+  const seg = el('div', 'seg');
+  seg.setAttribute('role', 'group');
+  seg.setAttribute('aria-label', 'Group for ' + t.label);
+  for (const [label, val] of [['Standard', 0], ['Seasonal', 1]]) {
+    const btn = el('button', null, label);
+    btn.type = 'button';
+    const on = !!t.seasonal === !!val;
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.onclick = () => {
+      if (on) return;
+      t.seasonal = val;
+      renderThemes();
+      themePost({ id: t.id, seasonal: !!val }, 'Moving ' + t.label + ' to ' + label);
+    };
+    seg.appendChild(btn);
+  }
+  body.appendChild(seg);
+  card.appendChild(body);
+  return card;
+}
+
+$('#theme-filter').addEventListener('input', (e) => { themeView.filter = e.target.value; renderThemes(); });
+document.querySelectorAll('#theme-show [data-show]').forEach((b) => {
+  b.onclick = () => {
+    themeView.show = b.dataset.show;
+    document.querySelectorAll('#theme-show [data-show]').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    renderThemes();
+  };
+});
+document.querySelectorAll('[data-group]').forEach((b) => {
+  b.onclick = () => themePost(
+    { seasonal: b.dataset.group === 'seasonal', enabled: b.dataset.on === '1' },
+    // The server refuses (409) a bulk disable that would leave no theme on.
+    (b.dataset.on === '1' ? 'Enabling ' : 'Disabling ') + 'every ' + b.dataset.group + ' theme');
+});
 
 /* ---- audit + stats ---- */
 async function loadAudit() {
@@ -2671,18 +2788,6 @@ $('#bulk-dialog').addEventListener('close', async () => {
   }
 });
 
-document.querySelectorAll('[data-bulk]').forEach((b) => {
-  b.onclick = async () => {
-    try {
-      await api('/admin/themes', { method: 'POST', body: JSON.stringify({ seasonal: true, enabled: b.dataset.bulk === 'on' }) });
-      loadThemes();
-    } catch (err) {
-      // Bulk-disabling every seasonal theme can zero out all enabled
-      // themes, which the server also refuses with 409.
-      handleError(err, 'Updating seasonal themes');
-    }
-  };
-});
 
 async function start() {
   $('#login-view').hidden = true;
